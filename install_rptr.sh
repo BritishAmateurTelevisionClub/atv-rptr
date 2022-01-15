@@ -123,10 +123,11 @@ echo
 echo "------------------------------"
 echo "----- Compiling atv-rptr -----"
 echo "------------------------------"
-cd /home/pi/atv-rptr/src/ctrl
-#make
-#sudo make install
 
+cd /home/pi/atv-rptr/src/rptr
+make
+sudo make install
+cd /home/pi
 
 # Download, compile and install the executable for hardware shutdown button
 #echo
@@ -171,8 +172,7 @@ if !(grep global_cursor_default /boot/cmdline.txt) then
 fi
 
 # Record Version Number
-cd /home/pi/atv-rptr/config/
-cp latest_version.txt installed_version.txt
+cp /home/pi/atv-rptr/latest_version.txt /home/pi/atv-rptr/config/installed_version.txt
 cd /home/pi
 
 # Save git source used
