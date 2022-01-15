@@ -113,12 +113,12 @@ wget https://github.com/${GIT_SRC}/atv-rptr/archive/master.zip
 
 # Unzip the repeater software and copy to the Pi
 unzip -o master.zip
-mv atv-rptr-master atv-rptr
+mv atv-rptr-main atv-rptr
 rm master.zip
 cd /home/pi
 
 
-# Compile atv-rptr sofftware
+# Compile atv-rptr software
 echo
 echo "------------------------------"
 echo "----- Compiling atv-rptr -----"
@@ -129,19 +129,19 @@ cd /home/pi/atv-rptr/src/ctrl
 
 
 # Download, compile and install the executable for hardware shutdown button
-echo
-echo "------------------------------------------------------------"
-echo "----- Installing the hardware shutdown Button software -----"
-echo "------------------------------------------------------------"
+#echo
+#echo "------------------------------------------------------------"
+#echo "----- Installing the hardware shutdown Button software -----"
+#echo "------------------------------------------------------------"
 
-git clone https://github.com/philcrump/pi-sdn /home/pi/pi-sdn-build
+#git clone https://github.com/philcrump/pi-sdn /home/pi/pi-sdn-build
 
 # Install new version that sets swapoff
-cp -f /home/pi/rpidatv/src/pi-sdn/main.c /home/pi/pi-sdn-build/main.c
-cd /home/pi/pi-sdn-build
-make
-mv pi-sdn /home/pi/
-cd /home/pi
+#cp -f /home/pi/rpidatv/src/pi-sdn/main.c /home/pi/pi-sdn-build/main.c
+#cd /home/pi/pi-sdn-build
+#make
+#mv pi-sdn /home/pi/
+#cd /home/pi
 
 
 echo
