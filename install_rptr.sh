@@ -125,6 +125,7 @@ echo "----- Compiling atv-rptr -----"
 echo "------------------------------"
 
 cd /home/pi/atv-rptr/src/rptr
+touch main.c
 make
 sudo make install
 cd /home/pi

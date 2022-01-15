@@ -69,32 +69,33 @@ kcwaudio=off
 # Carousel info.  Max 99 scenes
 # options for type are jpg, (mp4 not implemented yet), status or source.  For source, file is source number
 # which can be a virtual source such as a grid of 4 images
-carouselscenes=6
+#carouselscenes=6
+carouselscenes=3
 carousel01mediatype=jpg
 carousel01file=/home/pi/tmp/tcfw.jpg
-carousel01mediaduration=2
-carousel02mediatype=jpg
-carousel02file=/home/pi/custom_media/explain.jpg
-carousel02mediaduration=2
-carousel03mediatype=jpg
-carousel03file=/home/pi/custom_media/block_slide.jpg
-carousel03mediaduration=2
-carousel04mediatype=jpg
-carousel04file=/home/pi/custom_media/farnham_site.jpg
-carousel04mediaduration=2
-carousel05mediatype=source
-carousel05file=1
-carousel05mediaduration=5
-carousel06mediatype=source
-carousel06file=4
-carousel06mediaduration=5
-
+carousel01mediaduration=10
 #carousel02mediatype=jpg
-#carousel02file=/home/pi/atv-rptr/media/pm5544w.jpg
-#carousel02mediaduration=3
+#carousel02file=/home/pi/custom_media/explain.jpg
+#carousel02mediaduration=2
 #carousel03mediatype=jpg
-#carousel03file=/home/pi/atv-rptr/media/75cbw.jpg
-#carousel03mediaduration=4
+#carousel03file=/home/pi/custom_media/block_slide.jpg
+#carousel03mediaduration=2
+#carousel04mediatype=jpg
+#carousel04file=/home/pi/custom_media/farnham_site.jpg
+#carousel04mediaduration=2
+#carousel05mediatype=source
+#carousel05file=1
+#carousel05mediaduration=5
+#carousel06mediatype=source
+#carousel06file=4
+#carousel06mediaduration=5
+
+carousel02mediatype=jpg
+carousel02file=/home/pi/atv-rptr/media/pm5544w.jpg
+carousel02mediaduration=10
+carousel03mediatype=jpg
+carousel03file=/home/pi/atv-rptr/media/75cbw.jpg
+carousel03mediaduration=10
 
 # Input config
 # Recommended gpio pins for "input active" are 32, 35, 18, 22, 16, 19 and 21
