@@ -124,6 +124,7 @@ echo "------------------------------"
 echo "----- Compiling atv-rptr -----"
 echo "------------------------------"
 
+mkdir atv-rptr/bin
 cd /home/pi/atv-rptr/src/rptr
 touch main.c
 make
