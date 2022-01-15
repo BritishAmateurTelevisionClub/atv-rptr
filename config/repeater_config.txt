@@ -24,6 +24,7 @@ carouselusbaudiomode=off
 carouselusbaudiogain=100
 
 # DTMF control  (Maybe define what actions dtmf codes trigger here in future?)
+# Control is on/off.  Timeout is in seconds
 # All dtmf codes are of the format *xx#.  Only xx are defined below.  Examples:
 dtmfcontrol=off
 dtmfactiontimeout=600
@@ -31,6 +32,13 @@ dtmfreset=00
 dtmfstatusview=01
 
 dtmfselectinput0=10
+dtmfselectinput1=11
+dtmfselectinput2=12
+dtmfselectinput3=13
+dtmfselectinput4=14
+dtmfselectinput5=15
+dtmfselectinput6=16
+dtmfselectinput7=17
 
 # Accessory DTMF Control examples
 dtmfoutputs=1
@@ -45,7 +53,7 @@ dtmfgpioin1label=cabinet_door
 # Background image for Caption Slides
 backimage=/home/pi/atv-rptr/media/batc_background.jpg
 
-# Ident info
+# Ident info (audio is on/off)
 identinterval=900
 identmediatype=jpg
 identmediaduration=5
@@ -97,24 +105,24 @@ carousel06mediaduration=5
 # IR uses a TX on GPIO pin 12
 # GPIO uses pins 36, 37, 38, 33, 31, 29, 23, 24 
 
-# activeinputhold means that lower priority inputs do not get replaced by higher priority (except pri 1)
+# activeinputhold (yes/no) means that lower priority inputs do not get replaced by higher priority (except pri 1)
 
 availableinputs=6
-activeinputhold=yes
+activeinputhold=no
 
 outputswitchcontrol=ir
 showoutputongpio=yes
-outputswitchirname=Portta_HDMI
-outputresetcode=KEY_1
+outputhdmiresetcode=nec:0x17
+output2ndhdmicode=nec:0x08
 
 input0name=Controller
-output0code=KEY_1
+output0code=nec:0x17
 output0hdmiswitchpin=36
 
 input1name=Stream Input
 input1prioritylevel=1
 input1activegpiopin=32
-output1code=KEY_2
+output1code=nec:0x12
 output1hdmiswitchpin=37
 input1announcemediatype=jpg
 input1announcemediafile=/home/pi/tmp/input1.jpg
@@ -123,7 +131,7 @@ input1announcemediaduration=3
 input2name=QO-100 RX
 input2prioritylevel=2
 input2activegpiopin=35
-output2code=KEY_3
+output2code=nec:0x59
 output2hdmiswitchpin=38
 input2announcemediatype=jpg
 input2announcemediafile=/home/pi/tmp/input2.jpg
@@ -132,7 +140,7 @@ input2announcemediaduration=3
 input3name=3.4 GHz Ryde
 input3prioritylevel=3
 input3activegpiopin=18
-output3code=KEY_4
+output3code=nec:0x08
 output3hdmiswitchpin=33
 input3announcemediatype=jpg
 input3announcemediafile=/home/pi/tmp/input3.jpg
@@ -141,7 +149,7 @@ input3announcemediaduration=3
 input4name=Quad View
 input4prioritylevel=7
 input4activegpiopin=22
-output4code=KEY_VIDEO
+output4code=nec:0x18
 output4hdmiswitchpin=31
 input4announcemediatype=jpg
 input4announcemediafile=/home/pi/tmp/input4.jpg
@@ -150,7 +158,7 @@ input4announcemediaduration=3
 input5name=Mast Camera
 input5prioritylevel=7
 input5activegpiopin=16
-output5code=2KEY_1
+output5code=2nec:0x12
 output5hdmiswitchpin=29
 input5announcemediatype=jpg
 input5announcemediafile=/home/pi/tmp/input5.jpg
@@ -159,7 +167,7 @@ input5announcemediaduration=10
 input6name=Unused 6
 input6prioritylevel=9
 input6activegpiopin=19
-output6code=2KEY_2
+output6code=2nec:0x59
 output6hdmiswitchpin=23
 input6announcemediatype=jpg
 input6announcemediafile=/home/pi/tmp/input6.jpg
@@ -168,7 +176,7 @@ input6announcemediaduration=3
 input7name=Unused 7
 input7prioritylevel=9
 input7activegpiopin=21
-output7code=2KEY_3
+output7code=2nec:0x08
 output7hdmiswitchpin=24
 input7announcemediatype=jpg
 input7announcemediafile=/home/pi/tmp/input7.jpg

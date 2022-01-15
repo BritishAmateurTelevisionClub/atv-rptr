@@ -162,17 +162,23 @@ void *SocketListener(void * arg)
           buf[strlen(buf) - 1] = '\0';  // Strip trailing cr
         }
 
-        if (strcmp(buf, "00") == 0)
+        // Check for valid command
+        if ((strcmp(buf, "00") == 0) || ((atoi(buf) >= 1) && (atoi(buf) <= 99)))
         {
-          inputStatusChange = true;
-          StatusScreenOveride = false;
+          UDP_Command(atoi(buf));
         }
 
-        if (strcmp(buf, "01") == 0)
-        {
-          inputStatusChange = true;
-          StatusScreenOveride = true;
-        }
+        //if (strcmp(buf, "00") == 0)
+        //{
+        //  inputStatusChange = true;
+        //  StatusScreenOveride = false;
+        //}
+
+        //if (strcmp(buf, "01") == 0)
+        //{
+        //  inputStatusChange = true;
+        //  StatusScreenOveride = true;
+        //}
 		
 		//now reply the client with the same data
 		//if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == -1)
@@ -183,6 +189,44 @@ void *SocketListener(void * arg)
 
 	close(s);
 	return NULL;
+}
+
+void UDP_Command(int command_code)
+{
+  int i;
+
+  if (command_code == atoi(dtmfresetcode))
+  {
+    inputStatusChange = true;
+    StatusScreenOveride = false;
+    output_overide = false;
+    in_output_overide_mode = false;
+    printf("Reset Code received\n");
+    return;
+  }
+  if (command_code == atoi(dtmfstatusviewcode))
+  {
+    inputStatusChange = true;
+    StatusScreenOveride = true;
+    output_overide = false;
+    in_output_overide_mode = false;
+    printf("Status Code received\n");
+    return;
+  }
+
+  for (i = 0; i <= 7; i++)
+  {
+    if (command_code == dtmfselectinput[i])
+    {
+      in_output_overide_mode = false;  // This will reset the timer
+      inputStatusChange = true;
+      StatusScreenOveride = false;
+      output_overide = true;
+      output_overide_source = i;
+      printf("Overide Code %d received\n", command_code);
+      return;
+    }
+  }
 }
 
 //pi@raspberrypi:~ $ ncat -v 127.0.0.1 8888 -u

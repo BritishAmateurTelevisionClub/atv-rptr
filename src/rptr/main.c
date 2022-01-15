@@ -281,19 +281,34 @@ void read_config_file()
   carouselusbaudiogain = atoi(Value);
 
   // DTMF Config
+
+  // DTMF Control Enabled?
   GetConfigParam(PATH_CONFIG, "dtmfcontrol", Value);
   if (strcmp(Value, "on") == 0)
   {
     dtmf_enabled = true;
   }
+
+  // DTMF Command timeout in seconds 
   strcpy(Value, "");
   GetConfigParam(PATH_CONFIG, "dtmfactiontimeout", Value);
   dtmfactiontimeout = atoi(Value);
+
+  // DTMF Reset Code (Puts repeater back to default operation)
   GetConfigParam(PATH_CONFIG, "dtmfreset", dtmfresetcode);
+
+  // DTMF Status View Code (Puts repeater into status view)
   GetConfigParam(PATH_CONFIG, "dtmfstatusview", dtmfstatusviewcode);
   strcpy(Value, "");
-  GetConfigParam(PATH_CONFIG, "dtmfselectinput0", Value);
-  dtmfselectinputbase = atoi(Value);
+
+  // DTMF Input Select codes
+  for (i = 0; i <= 7; i++)
+  {
+    strcpy(Value, "");
+    snprintf(Param, 127, "dtmfselectinput%d", i);
+    GetConfigParam(PATH_CONFIG, Param, Value);
+    dtmfselectinput[i] = atoi(Value);
+  }
 
   // Repeater Ident Config
   strcpy(Value, "");
@@ -375,11 +390,11 @@ void read_config_file()
   GetConfigParam(PATH_CONFIG, "outputswitchcontrol", outputswitchcontrol);
   if (strcmp(outputswitchcontrol, "ir") == 0)
   {
-    // Lirc name for remote control key file
-    GetConfigParam(PATH_CONFIG, "outputswitchirname", outputswitchirname);
-
     // Reset Code for HDMI Switch
-    GetConfigParam(PATH_CONFIG, "outputresetcode", outputresetcode);
+    GetConfigParam(PATH_CONFIG, "outputhdmiresetcode", outputhdmiresetcode);
+
+    // Daisy Chain input Code for primary HDMI Switch
+    GetConfigParam(PATH_CONFIG, "output2ndhdmicode", output2ndhdmicode);
   }
 
   // Show GPIO in addition to IR?
@@ -406,7 +421,7 @@ void read_config_file()
 
   // Behavior on input conflict
   GetConfigParam(PATH_CONFIG, "activeinputhold", Value);
-  if (strcmp(Value, "off") == 0)
+  if (strcmp(Value, "no") == 0)
   {
     activeinputhold = false;
   }
@@ -790,6 +805,7 @@ void Select_HDMI_Switch(int selection)        // selection is between 0 and avai
   int i;
   int thisGPIOlevel;
   char SystemCommand[127];
+  char IRCommandStub[63];
 
   if ((selection < 0)  || (selection > availableinputs))
   {
@@ -823,9 +839,29 @@ void Select_HDMI_Switch(int selection)        // selection is between 0 and avai
   if (strcmp(outputswitchcontrol, "ir") == 0)             // ir controlled HDMI switch
   {
     // IR code here
-    snprintf(SystemCommand, 126, "irsend SEND_ONCE %s %s", outputswitchirname, outputcode[selection]);
-        //system("irsend SEND_ONCE Portta_HDMI KEY_1");
-    system(SystemCommand);
+
+    // Check for daisy-chained switches
+    if (outputcode[selection][0] == '2')
+    {
+      //printf("daisy chain \n");
+      snprintf(IRCommandStub, 30, "%s", outputcode[selection] + 1);
+      //printf("IRCommandStub = -%s-\n", IRCommandStub);
+      strcpy(IRCommandStub, outputcode[1]);  // For TESTING
+      snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", IRCommandStub);
+      system(SystemCommand);
+
+      usleep(200000);     // Let switch settle
+
+      // Select daisy chain input on primary switch
+      snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", output2ndhdmicode);
+      system(SystemCommand);
+    }
+    else
+    {
+      //printf("Simple IR Command\n");
+      snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputcode[selection]);
+      system(SystemCommand);
+    }
   }
 }
 
@@ -880,18 +916,21 @@ int priorityDecision()
       {
         if (priority_test == 1)            // Always switch to the lowest numbered active priority 1 input
         {
-          printf("priority_test = %d,i = %d, inputactive[i] = %d\n", priority_test, i, inputactive[i]);
+          printf("Priority 1: ----- priority_test = %d,i = %d, inputactive[i] = %d\n", priority_test, i, inputactive[i]);
           decision_result = i;
         }
         else                               // priority 2 - 8
         {
-          if ((activeinputhold == true) && (inputactive[previous_decision_result] == 1))  // Use previous selection
+          printf("Priority %d: ----- priority_test = %d,i = %d, inputactive[i] = %d\n", i, priority_test, i, inputactive[i]);
+          if ((activeinputhold == true) && (inputactive[previous_decision_result] == 1) && (previous_decision_result != 0))  // Use previous selection
           {
-            decision_result = i;
+            decision_result = previous_decision_result;
+            printf("USING PREVIOUS RESULT\n");
           }
-          if (activeinputhold == false)
+          else
           {
             decision_result = i;
+            printf("USING HIGHEST PRIORITY RESULT\n");
           }
         }
       }
@@ -916,6 +955,8 @@ void repeaterEngine()
   int new_output = -1;
   inputStatusChange = true;   // To prompt selection of any input live on start-up
   firstCarousel = true;
+  uint64_t output_overide_timer;
+  bool previous_status_screenoveride = false;
 
   // Show the status screen if required
   if (StatusScreenOveride == true)
@@ -925,49 +966,85 @@ void repeaterEngine()
 
   while (run_repeater == true)
   {
-    if (inputStatusChange == true)
-    {
-      current_output = inputselected;
-      new_output = priorityDecision();
 
-      printf("Input status change.  Current Output = %d, New Output = %d\n", current_output, new_output);
 
-      if (new_output != current_output)  // only change if there is a change
+      if (output_overide == true)
       {
-        if (new_output == -1)  // No Active Inputs
+        // Set a timer and select the input on first entry;
+        if (in_output_overide_mode == false)
         {
-          Select_HDMI_Switch(0);  // Display Controller
-          inputselected = 0;      // Is this still required??
-          inputAfterIdent = 0;      // global for return from ident
-          if ((ident_active == false) && (StatusScreenOveride == false))
-          {
-            DisplayK();  // and then go to carousel
-          }
+          output_overide_timer = monotonic_ms() + 1000 * dtmfactiontimeout;
+          in_output_overide_mode = true;
+
+          Select_HDMI_Switch(output_overide_source);    // Display Controller
+          inputselected = output_overide_source;        // 
+          inputAfterIdent = output_overide_source;      // global for return from ident
         }
-        else
+
+        // Now check for exit conditions
+        if ((dtmfactiontimeout != 0) && (output_overide_timer <= monotonic_ms()))
         {
-          if (StatusScreenOveride == true)
+          output_overide = false;
+          in_output_overide_mode = false;
+
+          Select_HDMI_Switch(0);    // Display Controller
+          inputselected = 0;        // 
+          inputAfterIdent = 0;      // global for return from ident
+        }
+      }
+      else if (inputStatusChange == true)
+      {
+        // Normal operation
+        current_output = inputselected;
+        new_output = priorityDecision();
+
+        printf("Input status change.  Current Output = %d, New Output = %d\n", current_output, new_output);
+
+        if ((new_output != current_output) || ((previous_status_screenoveride = true) && (StatusScreenOveride == false))) // only change if there is a change
+        {
+          // Reset the exit from status screen trigger
+          if ((previous_status_screenoveride = true) && (StatusScreenOveride == false))
           {
-            update_status_screen();
-            Select_HDMI_Switch(0);
+            previous_status_screenoveride = false;
+          }
+
+          if (new_output == -1)  // No Active Inputs
+          {
+            Select_HDMI_Switch(0);  // Display Controller
+            inputselected = 0;      // Is this still required??
+            inputAfterIdent = 0;      // global for return from ident
+            if ((ident_active == false) && (StatusScreenOveride == false))
+            {
+              DisplayK();  // and then go to carousel
+            }
           }
           else
           {
-            Switchto(new_output);
+            //if (StatusScreenOveride == true)
+            //{
+            //  update_status_screen();
+            //  Select_HDMI_Switch(0);
+            //}
+            //else
+            if (StatusScreenOveride == false)
+            {
+              Switchto(new_output);
+            }
+            inputselected = new_output; // Is this still required?
+            inputAfterIdent = new_output; // global for return from ident
+            //pthread_join(thkcarousel, NULL);
           }
-          inputselected = new_output; // Is this still required?
-          inputAfterIdent = new_output; // global for return from ident
-          //pthread_join(thkcarousel, NULL);
+        }
+        inputStatusChange = false;
+
+        if (StatusScreenOveride == true)
+        {
+          update_status_screen();
+          Select_HDMI_Switch(0);
         }
       }
-      inputStatusChange = false;
 
-      if (StatusScreenOveride == true)
-      {
-        update_status_screen();
-      }
-    }
-    usleep (1000); // 1ms loop
+    usleep (10000); // 10ms loop
   }
 }
 
@@ -995,6 +1072,7 @@ int main(int argc, char *argv[])
 {
 
   int i;
+  char SystemCommand[127];
 
   // Catch sigaction and call terminate
   for (i = 0; i < 16; i++)
@@ -1026,7 +1104,6 @@ int main(int argc, char *argv[])
   printf("Creating ident timer thread\n");
   pthread_create (&thidenttimer, NULL, &Show_Ident, NULL);
 
-
   // Monitor the input status lines in a thread
   printf("Creating input status monitor thread\n");
   pthread_create (&thinputactivemonitor, NULL, &InputStatusListener, NULL);
@@ -1035,7 +1112,12 @@ int main(int argc, char *argv[])
   printf("Creating udp socket monitor thread\n");
   pthread_create (&thsocketmonitor, NULL, &SocketListener, NULL);
 
-  //StatusScreenOveride = true;
+  // If IR controlled, reset the HDMI Switch
+  if (strcmp(outputswitchcontrol, "ir") == 0)             // ir controlled HDMI switch
+  {
+    snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputhdmiresetcode);
+    system(SystemCommand);
+  }
 
   printf("Starting the main repeater controller\n");
   repeaterEngine();         // This keeps the repeater running

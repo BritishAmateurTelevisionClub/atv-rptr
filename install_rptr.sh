@@ -68,6 +68,7 @@ sudo apt-get -y install pigpio
 sudo apt-get -y install imagemagick
 sudo apt-get -y install ncat
 sudo apt-get -y install lirc
+sudo apt-get -y install ir-keytable
 
 cd /home/pi
 
@@ -143,16 +144,17 @@ mv pi-sdn /home/pi/
 cd /home/pi
 
 
-
 echo
 echo "--------------------------------------"
 echo "----- Configure the Menu Aliases -----"
 echo "--------------------------------------"
 
 # Install the menu aliases
-#echo "alias menu='/home/pi/rpidatv/scripts/menu.sh menu'" >> /home/pi/.bash_aliases
+echo "alias menu='/home/pi/atv-rptr/scripts/menu.sh menu'" >> /home/pi/.bash_aliases
 echo "alias urptr='/home/pi/atv-rptr/utils/update_rptr.sh'" >> /home/pi/.bash_aliases
 echo "alias rptr='/home/pi/atv-rptr/utils/run_rptr.sh'" >> /home/pi/.bash_aliases
+echo "alias stop='/home/pi/atv-rptr/utils/stop.sh'" >> /home/pi/.bash_aliases
+echo "alias restart='/home/pi/atv-rptr/utils/restart.sh'" >> /home/pi/.bash_aliases
 
 echo if test -z \"\$SSH_CLIENT\" >> ~/.bashrc 
 echo then >> ~/.bashrc

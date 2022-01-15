@@ -76,6 +76,46 @@ do_status()
   echo "01" > /dev/udp/127.0.0.1/8888 >/dev/null 2>/dev/null
 }
 
+do_0()
+{
+  echo "10" > /dev/udp/127.0.0.1/8888 >/dev/null 2>/dev/null
+}
+
+do_1()
+{
+  echo "11" > /dev/udp/127.0.0.1/8888 >/dev/null 2>/dev/null
+}
+
+do_2()
+{
+  echo "12" > /dev/udp/127.0.0.1/8888 >/dev/null 2>/dev/null
+}
+
+do_3()
+{
+  echo "13" > /dev/udp/127.0.0.1/8888 >/dev/null 2>/dev/null
+}
+
+do_4()
+{
+  echo "14" > /dev/udp/127.0.0.1/8888 >/dev/null 2>/dev/null
+}
+
+do_5()
+{
+  echo "15" > /dev/udp/127.0.0.1/8888 >/dev/null 2>/dev/null
+}
+
+do_6()
+{
+  echo "16" > /dev/udp/127.0.0.1/8888 >/dev/null 2>/dev/null
+}
+
+do_6()
+{
+  echo "17" > /dev/udp/127.0.0.1/8888 >/dev/null 2>/dev/null
+}
+
 
 do_update()
 {
@@ -538,10 +578,26 @@ do_video_change()
 }
 
 
-do_Shutdown()
+do_Shutdown2()
 {
   sudo shutdown now
 }
+
+do_Shutdown()
+{
+  menuchoice=$(whiptail --title "REALLY SHUTDOWN? SITE VISIT??" --menu "Select Choice and press enter" 16 78 4 \
+    "1 Back" "Return to Main Menu" \
+    "2 Reboot now" "Immediate Reboot" \
+    "3 Shutdown now" "Immediate Shutdown" \
+      3>&2 2>&1 1>&3)
+    case "$menuchoice" in
+      1\ *) ;;
+      2\ *) do_Reboot ;;
+      3\ *) do_Shutdown2 ;;
+    esac
+}
+
+
 
 
 do_Exit()
@@ -553,14 +609,14 @@ do_Exit()
 do_shutdown_menu()
 {
   menuchoice=$(whiptail --title "Shutdown Menu" --menu "Select Choice and press enter" 16 78 4 \
-    "1 Shutdown now" "Immediate Shutdown"  \
+    "1 Exit to Linux" "Exit Menu to Command Prompt" \
     "2 Reboot now" "Immediate Reboot" \
-    "3 Exit to Linux" "Exit Menu to Command Prompt" \
+    "3 Shutdown now" "Immediate Shutdown.  Really?"  \
       3>&2 2>&1 1>&3)
     case "$menuchoice" in
-      1\ *) do_Shutdown ;;
+      1\ *) do_Exit ;;
       2\ *) do_Reboot ;;
-      3\ *) do_Exit ;;
+      3\ *) do_Shutdown ;;
     esac
 }
 
@@ -648,8 +704,16 @@ while [ "$status" -eq 0 ]
     # Display main menu
 
     menuchoice=$(whiptail --title "BATC Repeater Controller Main Menu" --menu "Select Choice and press enter:" 20 78 13 \
-	"0 Repeat" "Select Normal Mode" \
-    "1 Status" "Enter Status Mode" \
+	"0 Repeat" "Select Normal Repeater Operation Mode" \
+    "1 Status" "Enter Status Display Mode" \
+    "2 Input 0" "Show Input 0 = HDMI Port 1 (Controller)" \
+    "3 Input 1" "Show Input 1 = HDMI Port 2" \
+    "4 Input 2" "Show Input 2 = HDMI Port 3" \
+    "5 Input 3" "Show Input 3 = HDMI Port 4" \
+    "6 Input 4" "Show Input 4 = HDMI Port 5" \
+    "7 Input 5" "Show Input 5 = HDMI Port 6" \
+    "8 Input 6" "Show Input 6 = HDMI Port 7" \
+    "9 Input 7" "Show Input 7 = HDMI Port 8" \
     "12 Shutdown" "Shutdown, Reboot or exit to the Linux command prompt" \
  	3>&2 2>&1 1>&3)
 
