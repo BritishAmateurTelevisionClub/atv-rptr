@@ -1,6 +1,7 @@
 #!/bin/bash
 
 cd /home/pi
+reset
 
 ## Check which version number to look up.
 GIT_SRC_FILE=".atv-rptr_gitsrc"

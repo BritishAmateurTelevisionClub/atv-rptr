@@ -53,11 +53,14 @@ echo "------------------------------------"
 echo "----- Updating Package Manager -----"
 echo "------------------------------------"
 sudo dpkg --configure -a
+SUCCESS=$?; BuildLogMsg $SUCCESS "dpkg configure"
 sudo apt-get update --allow-releaseinfo-change
+SUCCESS=$?; BuildLogMsg $SUCCESS "apt-get update"
 
 # Uninstall the apt-listchanges package to allow silent install of ca certificates (201704030)
 # http://unix.stackexchange.com/questions/124468/how-do-i-resolve-an-apparent-hanging-update-process
 sudo apt-get -y remove apt-listchanges
+SUCCESS=$?; BuildLogMsg $SUCCESS "remove apt-listchanges"
 
 # Upgrade the distribution
 echo
@@ -65,6 +68,7 @@ echo "-----------------------------------"
 echo "----- Performing dist-upgrade -----"
 echo "-----------------------------------"
 sudo apt-get -y dist-upgrade
+SUCCESS=$?; BuildLogMsg $SUCCESS "dist-upgrade"
 
 # Install the packages that we need
 echo
@@ -75,21 +79,33 @@ echo "-------------------------------"
 sudo apt-get -y install git
 SUCCESS=$?; BuildLogMsg $SUCCESS "git install"
 sudo apt-get -y install cmake 
+SUCCESS=$?; BuildLogMsg $SUCCESS "cmake install"
 sudo apt-get -y install fbi
+SUCCESS=$?; BuildLogMsg $SUCCESS "fbi install"
 sudo apt-get -y install libjpeg-dev
+SUCCESS=$?; BuildLogMsg $SUCCESS "libjpeg-dev install"
 sudo apt-get -y install pigpio
+SUCCESS=$?; BuildLogMsg $SUCCESS "pigpio install"
 sudo apt-get -y install imagemagick
+SUCCESS=$?; BuildLogMsg $SUCCESS "imagemagick install"
 sudo apt-get -y install ncat
+SUCCESS=$?; BuildLogMsg $SUCCESS "ncat install"
 sudo apt-get -y install lirc
+SUCCESS=$?; BuildLogMsg $SUCCESS "lirc install"
 sudo apt-get -y install ir-keytable
+SUCCESS=$?; BuildLogMsg $SUCCESS "ir-keytable install"
 sudo apt-get -y install multimon-ng
+SUCCESS=$?; BuildLogMsg $SUCCESS "multimon-ng install"
 sudo apt-get -y install sox
+SUCCESS=$?; BuildLogMsg $SUCCESS "sox install"
 sudo apt-get -y install vlc
+SUCCESS=$?; BuildLogMsg $SUCCESS "vlc install"
 
 cd /home/pi
 
 # Set auto login to command line.
 sudo raspi-config nonint do_boot_behaviour B2
+SUCCESS=$?; BuildLogMsg $SUCCESS "raspi-config auto-login"
 
 # set the framebuffer to 32 bit depth by disabling dtoverlay=vc4-fkms-v3d
 #echo
@@ -98,12 +114,15 @@ sudo raspi-config nonint do_boot_behaviour B2
 #echo "----------------------------------------------"
 
 sudo sed -i "/^dtoverlay=vc4-fkms-v3d/c\#dtoverlay=vc4-fkms-v3d" /boot/config.txt
+SUCCESS=$?; BuildLogMsg $SUCCESS "Disabled dtoverlay=vc4-fkms-v3d"
 
 # Turn overscan off for full-screen captions
 sudo sed -i "/^#disable_overscan=1/c\disable_overscan=1" /boot/config.txt
+SUCCESS=$?; BuildLogMsg $SUCCESS "Disabled overscan"
 
 # Enable the IR Output GPIO
 sudo sed -i "/^#dtoverlay=gpio-ir-tx,gpio_pin=18/c\dtoverlay=gpio-ir-tx,gpio_pin=18" /boot/config.txt
+SUCCESS=$?; BuildLogMsg $SUCCESS "Enabled IR GPIO"
 
 # Reduce the dhcp client timeout to speed off-network startup
 echo
@@ -112,13 +131,17 @@ echo "---- Reducing the dhcp client timeout -----"
 echo "-------------------------------------------"
 sudo bash -c 'echo -e "\n# Shorten dhcpcd timeout from 30 to 5 secs" >> /etc/dhcpcd.conf'
 sudo bash -c 'echo -e "timeout 5\n" >> /etc/dhcpcd.conf'
+SUCCESS=$?; BuildLogMsg $SUCCESS "Shortened DHCP Timeout"
+
 cd /home/pi/
 
 # Amend /etc/fstab to create a tmpfs drive at ~/tmp for multiple images (201708150)
 sudo sed -i '4itmpfs           /home/pi/tmp    tmpfs   defaults,noatime,nosuid,size=10m  0  0' /etc/fstab
+SUCCESS=$?; BuildLogMsg $SUCCESS "Created tempfs"
 
 # Enable the pigpio daemon (which will start on reboot)
 sudo systemctl enable pigpiod
+SUCCESS=$?; BuildLogMsg $SUCCESS "Enabled pigpiod daemon"
 
 # Download the previously selected version of the BATC ATV Repeater Software
 echo
@@ -128,6 +151,7 @@ echo "-----------------------------------------"
 
 cd /home/pi
 wget https://github.com/${GIT_SRC}/atv-rptr/archive/refs/heads/main.zip -O main.zip
+SUCCESS=$?; BuildLogMsg $SUCCESS "Downloaded Repeater Software"
 
 # Unzip the repeater software and copy to the Pi
 unzip -o main.zip
@@ -146,6 +170,7 @@ mkdir atv-rptr/bin
 cd /home/pi/atv-rptr/src/rptr
 touch main.c
 make
+SUCCESS=$?; BuildLogMsg $SUCCESS "Compiled Repeater Software"
 sudo make install
 cd /home/pi
 
@@ -158,6 +183,7 @@ echo "------------------------------"
 cd /home/pi/atv-rptr/src/txt2morse
 touch txt2morse.c
 make
+SUCCESS=$?; BuildLogMsg $SUCCESS "Compiled txt2morse Software"
 cp /home/pi/atv-rptr/src/txt2morse/build/txt2morse /home/pi/atv-rptr/bin/txt2morse
 cd /home/pi
 

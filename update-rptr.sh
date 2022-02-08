@@ -105,7 +105,6 @@ PATHCONFIG="/home/pi/atv-rptr/config"
 PATHUBACKUP="/home/pi/user_backups"
 CONFIGFILE="/home/pi/atv-rptr/config/repeater_config.txt"
 
-
 # Remove previous User Config Backups
 rm -rf "$PATHUBACKUP"
 
@@ -113,7 +112,7 @@ rm -rf "$PATHUBACKUP"
 mkdir "$PATHUBACKUP" >/dev/null 2>/dev/null
 
 # Make a safe copy of repeater_config.txt
-cp -f -r "CONFIGFILE" "$PATHUBACKUP"/repeater_config.txt
+cp -f -r "$PATHCONFIG"/repeater_config.txt "$PATHUBACKUP"/repeater_config.txt
 
 # Note previous version number
 cp -f -r /home/pi/atv-rptr/config/installed_version.txt "$PATHUBACKUP"/prev_installed_version.txt
@@ -124,14 +123,18 @@ echo $(date -u) "Version before Update was "$PREVINSTALLEDVERSION"" | sudo tee -
 DisplayUpdateMsg "Step 4 of 10\nUpdating Software Package List\n\nXXXX------"
 
 sudo dpkg --configure -a                            # Make sure that all the packages are properly configured
+SUCCESS=$?; UpdateLogMsg $SUCCESS "dpkg configure"
 sudo apt-get clean                                  # Clean up the old archived packages
+SUCCESS=$?; UpdateLogMsg $SUCCESS "apt-get clean"
 sudo apt-get update --allow-releaseinfo-change      # Update the package list
+SUCCESS=$?; UpdateLogMsg $SUCCESS "apt-get update"
 
 DisplayUpdateMsg "Step 5 of 10\nUpdating Software Packages\n\nXXXX------"
 
 # --------- Update Packages ------
 
 sudo apt-get -y dist-upgrade # Upgrade all the installed packages to their latest version
+SUCCESS=$?; UpdateLogMsg $SUCCESS "dist-upgrade"
 
 # --------- Install new packages as Required ---------
 
@@ -148,9 +151,9 @@ echo "------------------------------------------"
 
 cd /home/pi
 
-
 # Download selected source of atv-rptr
 wget https://github.com/${GIT_SRC}/atv-rptr/archive/refs/heads/main.zip -O main.zip
+SUCCESS=$?; UpdateLogMsg $SUCCESS "repeater controller download"
 
 # Unzip and overwrite where we need to
 unzip -o main.zip
@@ -165,6 +168,7 @@ mkdir atv-rptr/bin
 cd /home/pi/atv-rptr/src/rptr
 touch main.c
 make
+SUCCESS=$?; UpdateLogMsg $SUCCESS "Compile repeater controller"
 sudo make install
 cd /home/pi
 
@@ -177,6 +181,7 @@ echo "------------------------------"
 cd /home/pi/atv-rptr/src/txt2morse
 touch txt2morse.c
 make
+SUCCESS=$?; UpdateLogMsg $SUCCESS "Compile txt2morse"
 cp /home/pi/atv-rptr/src/txt2morse/build/txt2morse /home/pi/atv-rptr/bin/txt2morse
 cd /home/pi
 
