@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 
 # Compile and run the repeater software
 
@@ -24,9 +24,9 @@ EOF
 }
 
 pkill run-audio.sh  >/dev/null 2>/dev/null
-
+pkill dtmf_listener.sh >/dev/null 2>/dev/null
+sudo killall arecord >/dev/null 2>/dev/null
 sudo killall -9 fbi >/dev/null 2>/dev/null
-
 sudo killall rptr >/dev/null 2>/dev/null
 
 cd /home/pi/atv-rptr/src/rptr
@@ -46,49 +46,36 @@ cd /home/pi
 reset
 
 
-
 # Put up the Start-up Splash Screen, which will be killed by the repeater process
 sudo fbi -T 1 -noverbose -a /home/pi/atv-rptr/media/starting_up.jpg >/dev/null 2>/dev/null
 
 # Source the script to build the default captions
+printf "Building the Captions\n"
 
 source /home/pi/atv-rptr/scripts/build_captions.sh
 
-MODE_STARTUP=$(get_config_var onboot $CONFIGFILE)
-
 
 # Start a low level pink noise to maintain audio channel active
-/home/pi/atv-rptr/scripts/run-audio.sh &
 
+AUDIO_KEEP_ALIVE=$(get_config_var audiokeepalive $CONFIGFILE)
+if [[ "$AUDIO_KEEP_ALIVE" == "yes" ]];
+then
+  /home/pi/atv-rptr/scripts/run-audio.sh &
+fi
 
-# Select the appropriate action
+# Start the DTMF Listener if required
+DTMF_CONTROL=$(get_config_var dtmfcontrol $CONFIGFILE)
+if [[ "$DTMF_CONTROL" == "on" ]];
+then
+  ps cax | grep 'multimon-ng' > /dev/null
+  if [ $? -ne 0 ]; then
+    echo "DTMF Process is not running.  Starting the DTMF Listener"
+    (/home/pi/atv-rptr/scripts/dtmf_listener.sh /dev/null 2>/dev/null) &
+  fi
+fi
 
-case "$MODE_STARTUP" in
-  nil)
-    # Go straight to command prompt
-    exit
-  ;;
-  repeat)
-    /home/pi/atv-rptr/bin/rptr
-    exit
-  ;;
-  beacon)
-    /home/pi/atv-rptr/bin/rptr
-    exit
-  ;;
-  txoff)
-    /home/pi/atv-rptr/bin/rptr
-    exit
-  ;;
-  status)
-    /home/pi/atv-rptr/bin/rptr
-    exit
-  ;;
-  *)
-    exit
-  ;;
-esac
-
-
+# Start the Repeater Controller
+/home/pi/atv-rptr/bin/rptr
+exit
 
 

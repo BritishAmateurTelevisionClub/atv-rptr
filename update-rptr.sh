@@ -2,12 +2,21 @@
 
 # Updated by davecrump 20220101 for the BATC ATV Repeater
 
+UpdateLogMsg() {
+  if [[ "$1" == "0" ]]; then
+    echo $(date -u) "Update Success " "$2" | sudo tee -a /var/log/rptr/update_log.txt  > /dev/null
+  else
+    echo $(date -u) "Update Fail    " "$2" | sudo tee -a /var/log/rptr/update_log.txt  > /dev/null
+  fi
+}
+
+
 DisplayUpdateMsg() {
   # Delete any old update message image
   rm /home/pi/tmp/update.jpg >/dev/null 2>/dev/null
 
   # Create the update image in the tempfs folder
-  convert -size 800x480 xc:white \
+  convert -size 1280x720 xc:white \
     -gravity North -pointsize 40 -annotate 0 "\nUpdating Repeater Software" \
     -gravity Center -pointsize 50 -annotate 0 "$1""\n\nPlease wait" \
     -gravity South -pointsize 50 -annotate 0 "DO NOT TURN POWER OFF" \
@@ -19,11 +28,11 @@ DisplayUpdateMsg() {
 }
 
 DisplayRebootMsg() {
-  # Delete any old update message image  201802040
+  # Delete any old update message image
   rm /home/pi/tmp/update.jpg >/dev/null 2>/dev/null
 
   # Create the update image in the tempfs folder
-  convert -size 800x480 xc:white \
+  convert -size 1280x720 xc:white \
     -gravity North -pointsize 40 -annotate 0 "\nUpdating Repeater Software" \
     -gravity Center -pointsize 50 -annotate 0 "$1""\n\nDone" \
     -gravity South -pointsize 50 -annotate 0 "SAFE TO POWER OFF" \
@@ -51,11 +60,25 @@ end
 EOF
 }
 
+##############################################################
+
 reset
 
 printf "\nCommencing update.\n\n"
 
+# Rotate the update log
+sudo mv /var/log/rptr/update_log.txt /var/log/rptr/previous_update_log.txt >/dev/null 2>/dev/null
+
+# Create the first entry for the new update log
+echo $(date -u) "Update started" | sudo tee -a /var/log/rptr/update_log.txt  > /dev/null
+
 cd /home/pi
+
+# Stop the existing repeater
+pkill dtmf_listener.sh >/dev/null 2>/dev/null
+pkill run-audio.sh  >/dev/null 2>/dev/null
+sudo killall -9 fbi >/dev/null 2>/dev/null
+sudo killall rptr >/dev/null 2>/dev/null
 
 ## Check which update to load
 GIT_SRC="BritishAmateurTelevisionClub"
@@ -82,8 +105,6 @@ PATHCONFIG="/home/pi/atv-rptr/config"
 PATHUBACKUP="/home/pi/user_backups"
 CONFIGFILE="/home/pi/atv-rptr/config/repeater_config.txt"
 
-# Note previous version number
-cp -f -r /home/pi/atv-rptr/config/installed_version.txt /home/pi/atv-rptr/config/prev_installed_version.txt
 
 # Remove previous User Config Backups
 rm -rf "$PATHUBACKUP"
@@ -94,8 +115,10 @@ mkdir "$PATHUBACKUP" >/dev/null 2>/dev/null
 # Make a safe copy of repeater_config.txt
 cp -f -r "CONFIGFILE" "$PATHUBACKUP"/repeater_config.txt
 
-# Make a safe copy of Version Info
-cp -f -r "$PATHCONFIG"/prev_installed_version.txt "$PATHUBACKUP"/prev_installed_version.txt
+# Note previous version number
+cp -f -r /home/pi/atv-rptr/config/installed_version.txt "$PATHUBACKUP"/prev_installed_version.txt
+PREVINSTALLEDVERSION=$(head -c 9 /home/pi/atv-rptr/config/installed_version.txt)
+echo $(date -u) "Version before Update was "$PREVINSTALLEDVERSION"" | sudo tee -a /var/log/rptr/update_log.txt  > /dev/null
 
 
 DisplayUpdateMsg "Step 4 of 10\nUpdating Software Package List\n\nXXXX------"
@@ -112,6 +135,7 @@ sudo apt-get -y dist-upgrade # Upgrade all the installed packages to their lates
 
 # --------- Install new packages as Required ---------
 
+# None yet
 
 # ---------- Update atv-rptr -----------
 
@@ -124,30 +148,37 @@ echo "------------------------------------------"
 
 cd /home/pi
 
-# Delete previous update folder if downloaded in error
-rm -rf atv-rptr-main >/dev/null 2>/dev/null
 
 # Download selected source of atv-rptr
-wget https://github.com/${GIT_SRC}/atv-rptr/archive/main.zip -O main.zip
+wget https://github.com/${GIT_SRC}/atv-rptr/archive/refs/heads/main.zip -O main.zip
 
 # Unzip and overwrite where we need to
 unzip -o main.zip
 rm -rf atv-rptr
-mv atv-rptr-main/ atv-rptr
+mv atv-rptr-main atv-rptr
 rm main.zip
 cd /home/pi
 
 DisplayUpdateMsg "Step 7 of 10\nCompiling Repeater SW\n\nXXXXXX----"
 
-# Compile atv-rptr
-#sudo killall -9 rpidatvgui
-#echo "Installing rpidatvgui"
-#cd /home/pi/rpidatv/src/gui
-#make clean
-#make
-#sudo make install
+mkdir atv-rptr/bin
+cd /home/pi/atv-rptr/src/rptr
+touch main.c
+make
+sudo make install
 cd /home/pi
 
+# Compile the txt2morse software
+echo
+echo "------------------------------"
+echo "----- Compiling txt2morse ----"
+echo "------------------------------"
+
+cd /home/pi/atv-rptr/src/txt2morse
+touch txt2morse.c
+make
+cp /home/pi/atv-rptr/src/txt2morse/build/txt2morse /home/pi/atv-rptr/bin/txt2morse
+cd /home/pi
 
 DisplayUpdateMsg "Step 8 of 10\nRestoring Config\n\nXXXXXXXX--"
 
@@ -157,12 +188,15 @@ cp -f -r "$PATHUBACKUP"/repeater_config.txt "$PATHCONFIG"/repeater_config.txt
 # Restore version info
 #cp -f -r "$PATHUBACKUP"/prev_installed_version.txt "$PATHCONFIG"/prev_installed_version.txt
 
+# Update the log file rotation configuration
+sudo cp /home/pi/atv-rptr/utils/templates/rptr /etc/logrotate.d/rptr
 
 DisplayUpdateMsg "Step 9 of 10\nFinishing Off\n\nXXXXXXXXX-"
 
 # Update the version number
-
 cp /home/pi/atv-rptr/latest_version.txt "$PATHCONFIG"/installed_version.txt
+INSTALLEDVERSION=$(head -c 9 /home/pi/atv-rptr/config/installed_version.txt)
+echo $(date -u) "Version After Update is "$INSTALLEDVERSION"" | sudo tee -a /var/log/rptr/update_log.txt  > /dev/null
 
 # Save (overwrite) the git source used
 echo "${GIT_SRC}" > /home/pi/atv-rptr/config/${GIT_SRC_FILE}

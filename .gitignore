@@ -1,3 +1,7 @@
-logs/error_log.txt
+bin/
+config/.atv-rptr_gitsrc
+src/rptr/rptr
+src/txt2morse/build/txt2morse
+config/installed_version.txt
 
 

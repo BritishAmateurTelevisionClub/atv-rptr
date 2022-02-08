@@ -1,9 +1,12 @@
 #ifndef __LISTENERS_H__
 #define __LISTENERS_H__
 
+extern void SetConfigParam(char *PathConfigFile, char *Param, char *Value);
+
 void *InputStatusListener(void * arg);
 void *SocketListener(void * arg);
 void UDP_Command(int);
+int PTTEvent(int);
 
 extern bool run_repeater;
 extern int localGPIO;
@@ -18,6 +21,27 @@ extern bool in_output_overide_mode;
 extern int output_overide_source;
 extern char dtmfresetcode[31];
 extern char dtmfstatusviewcode[31];
+extern char dtmfquadviewcode[31];
 extern int dtmfselectinput[8];
+extern int dtmfoutputs;
+extern char dtmfgpiooutoncode[10][31];
+extern char dtmfgpiooutoffcode[10][31];
+extern int dtmfoutputGPIO[10];                            // DTMF Output GPIO Broadcom numbers as an int
+extern char dtmfkeepertxoffcode[31];                      // 5-figure string
+extern char dtmfkeepertxoncode[31];                       // 5-figure string
+extern char dtmfkeeperrebootcode[31];                     // 5-figure string
+extern int localGPIO;                                     // Identifier for piGPIO
+extern int pttGPIO;
+extern bool hour24operation;
+extern bool halfhourpowersave;
+extern bool transmitenabled;
+extern bool transmitwhennotinuse;
+extern bool identduringquiethours;
+extern bool repeatduringquiethours;
+extern int operatingtimestart;
+extern int operatingtimefinish;
+extern int inputAfterIdent;
+extern bool beaconmode;
+
 
 #endif /* __LISTENERS_H__ */

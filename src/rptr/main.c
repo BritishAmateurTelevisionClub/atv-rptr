@@ -48,11 +48,6 @@ Written by Dave, G8GKQ
 
 int debug_level = 0;   // set to 2 to see all config file reads
 
-int localGPIO;                                     // Identifier for piGPIO
-
-bool run_repeater = true;                          // Used to neatly exit threads
-
-
 
 // Threads
 pthread_t thinputactivemonitor;
@@ -60,14 +55,19 @@ pthread_t thidenttimer;
 pthread_t thkcarousel;
 pthread_t thsocketmonitor;
 
+// Mutex's
+pthread_mutex_t fbi_lock;
+
 // Function Prototypes
 
 void GetConfigParam(char *PathConfigFile, char *Param, char *Value);
 void SetConfigParam(char *PathConfigFile, char *Param, char *Value);
 void strcpyn(char *outstring, char *instring, int n);
+void log_rptr_error(char *errorstring);
 //void runInputStatusMonitor();
 void update_status_screen();
 void Select_HDMI_Switch(int);
+int Switchto(int);
 
 void read_config_file();
 
@@ -94,11 +94,14 @@ void GetConfigParam(char *PathConfigFile, char *Param, char *Value)
   strcpy(ParamWithEquals, Param);
   strcat(ParamWithEquals, "=");
   int file_test = 0;
+  strcpy(Value, "");
+  char error_message[255];
 
   file_test = file_exist(PathConfigFile);  // Log error if file does not exist
   if (file_test == 1)
   {
-    system("echo ConfigFileNotFoundinGetConfigParam >> /home/pi/atv-rptr/logs/error_log.txt");
+    snprintf(error_message, 255, "Config File %s not found", PathConfigFile);
+    log_rptr_error(error_message);
     strcpy(Value, " ");
     return;
   }
@@ -129,7 +132,8 @@ void GetConfigParam(char *PathConfigFile, char *Param, char *Value)
 
   if (strlen(Value) == 0)  // Log error if parameter undefined
   {  
-    system("echo ParameterUndefinedInConfigFile >> /home/pi/atv-rptr/logs/error_log.txt");
+    snprintf(error_message, 255, "Parameter %s Undefined In Config File", Param);
+    log_rptr_error(error_message);
   }
 }
 
@@ -152,6 +156,7 @@ void SetConfigParam(char *PathConfigFile, char *Param, char *Value)
   char Command[511];
   char BackupConfigName[240];
   char ParamWithEquals[255];
+  char error_message[255];
 
   if (debug_level == 2)
   {
@@ -160,7 +165,8 @@ void SetConfigParam(char *PathConfigFile, char *Param, char *Value)
 
   if (strlen(Value) == 0)  // Don't write empty values
   {
-    system("echo AttemptToSetEmptyConfigValue >> /home/pi/atv-rptr/logs/error_log.txt");
+    snprintf(error_message, 255, "Attempt To Set Empty Config Value to parameter %s", Param);
+    log_rptr_error(error_message);
     return;
   }
 
@@ -220,7 +226,32 @@ void strcpyn(char *outstring, char *instring, int n)
   outstring[n] = '\0'; // Terminate the outstring
 }
 
+/***************************************************************************//**
+ * @brief safely writes up to 220 characters of errorstring to the error log with a timestamp
+ *
+ * @param *errorstring
+ *
+ * @return void
+*******************************************************************************/
 
+void log_rptr_error(char *errorstring)
+{
+  time_t t; 
+  struct tm tm;
+  char timestamped_errorstring[255];
+  char echo_command[511];
+
+  t = time(NULL);
+  tm = *gmtime(&t);
+
+  snprintf(timestamped_errorstring, 255, "%d-%02d-%02d %02d:%02d:%02d ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+  strcat (timestamped_errorstring, errorstring);
+  // printf("\n%s\n\n", timestamped_errorstring);
+  //snprintf(echo_command, 511, "echo \"%s\" >> /home/pi/atv-rptr/logs/error_log.txt", timestamped_errorstring);
+  snprintf(echo_command, 511, "echo \"%s\" | sudo tee -a /var/log/rptr/error_log.txt  > /dev/null", timestamped_errorstring);
+  //printf("\n%s\n\n", echo_command);
+  system(echo_command);
+}
 
 /***************************************************************************//**
  * @brief Reads all the parameters in the saved config file to the global variables
@@ -263,11 +294,88 @@ void read_config_file()
     screen_height = 480;
   }
 
-  // Boot and operating behaviour
-  GetConfigParam(PATH_CONFIG, "onboot", onboot);
+  // Audio Keep Alive
+  strcpy(Value, "no");
+  GetConfigParam(PATH_CONFIG, "audiokeepalive", Value);
+  if (strcmp(Value, "yes") == 0)
+  {
+    audiokeepalive = true;
+  }
+
+  // Transmit Enabled?
+  strcpy(Value, "no");
+  GetConfigParam(PATH_CONFIG, "transmitenabled", Value);
+  if (strcmp(Value, "yes") == 0)
+  {
+    transmitenabled = true;
+  }
+
+  // Beacon Mode?
+  strcpy(Value, "no");
+  GetConfigParam(PATH_CONFIG, "beaconmode", Value);
+  if (strcmp(Value, "yes") == 0)
+  {
+    beaconmode = true;
+  }
+
+  // Continuous TX or power-saving?
+  strcpy(Value, "no");
+  GetConfigParam(PATH_CONFIG, "transmitwhennotinuse", Value);
+  if (strcmp(Value, "yes") == 0)
+  {
+    transmitwhennotinuse = true;
+  }
+
+  // Operate 24/7?
+  strcpy(Value, "no");
+  GetConfigParam(PATH_CONFIG, "24houroperation", Value);
+  if (strcmp(Value, "yes") == 0)
+  {
+    hour24operation = true;
+  }
+
+  // Save Power in the second half hour during active hours?
+  strcpy(Value, "no");
+  GetConfigParam(PATH_CONFIG, "halfhourpowersave", Value);
+  if (strcmp(Value, "yes") == 0)
+  {
+    halfhourpowersave = true;
+  }
+
+  // Operating times
+  strcpy(Value, "0");
   GetConfigParam(PATH_CONFIG, "operatingtimestart", Value);
+  operatingtimestart = atoi(Value);
+  if ((operatingtimestart < 0) || (operatingtimestart > 2359))
+  {
+    operatingtimestart = 0;
+    system("echo operatingtimestart_in_config_file_out_of_limits >> /home/pi/atv-rptr/logs/error_log.txt");
+  }
+
+  strcpy(Value, "0");
   GetConfigParam(PATH_CONFIG, "operatingtimefinish", Value);
-  // Need to add a time conversion in here
+  operatingtimefinish = atoi(Value);
+  if ((operatingtimefinish < 0) || (operatingtimefinish > 2359))
+  {
+    operatingtimefinish = 0;
+    system("echo operatingtimefinish_in_config_file_out_of_limits >> /home/pi/atv-rptr/logs/error_log.txt");
+  }
+
+  // Repeat during quiet hours?
+  strcpy(Value, "no");
+  GetConfigParam(PATH_CONFIG, "repeatduringquiethours", Value);
+  if (strcmp(Value, "yes") == 0)
+  {
+    repeatduringquiethours = true;
+  }
+
+  // Transmit idents during quiet hours?
+  strcpy(Value, "no");
+  GetConfigParam(PATH_CONFIG, "identduringquiethours", Value);
+  if (strcmp(Value, "yes") == 0)
+  {
+    identduringquiethours = true;
+  }
 
   // PTT command GPIO Pin
   strcpy(Value, "");
@@ -279,6 +387,11 @@ void read_config_file()
   strcpy(Value, "");
   GetConfigParam(PATH_CONFIG, "carouselusbaudiogain", Value);
   carouselusbaudiogain = atoi(Value);
+  if ((carouselusbaudiogain < 0) || (carouselusbaudiogain > 100))
+  {
+    carouselusbaudiogain = 50;
+    system("echo carouselusbaudiogain_in_config_file_out_of_limits >> /home/pi/atv-rptr/logs/error_log.txt");
+  }
 
   // DTMF Config
 
@@ -299,7 +412,18 @@ void read_config_file()
 
   // DTMF Status View Code (Puts repeater into status view)
   GetConfigParam(PATH_CONFIG, "dtmfstatusview", dtmfstatusviewcode);
-  strcpy(Value, "");
+
+  // DTMF Quad View Code (Puts repeater into quad view)
+  GetConfigParam(PATH_CONFIG, "dtmfquadview", dtmfquadviewcode);
+
+  // DTMF Keeper TX off Code (Turns repeater off (AND modifies config file)
+  GetConfigParam(PATH_CONFIG, "dtmfkeepertxoff", dtmfkeepertxoffcode);
+
+  // DTMF Keeper TX on Code (Turns repeater on (AND modifies config file)
+  GetConfigParam(PATH_CONFIG, "dtmfkeepertxon", dtmfkeepertxoncode);
+
+  // DTMF Keeper Reboot Code (Puts repeater into quad view)
+  GetConfigParam(PATH_CONFIG, "dtmfkeeperreboot", dtmfkeeperrebootcode);
 
   // DTMF Input Select codes
   for (i = 0; i <= 7; i++)
@@ -308,6 +432,80 @@ void read_config_file()
     snprintf(Param, 127, "dtmfselectinput%d", i);
     GetConfigParam(PATH_CONFIG, Param, Value);
     dtmfselectinput[i] = atoi(Value);
+  }
+
+  // DTMF Control of Accessory Outputs
+
+  // Number of outputs (0 - 10)
+  strcpy(Value, "");
+  GetConfigParam(PATH_CONFIG, "dtmfoutputs", Value);
+  dtmfoutputs = atoi(Value);
+
+  if (dtmfoutputs > 10)
+  {
+    dtmfoutputs = 0;
+    system("echo dtmfoutputs_in_config_file_out_of_limits >> /home/pi/atv-rptr/logs/error_log.txt");
+  }
+  else
+  {
+    if (dtmfoutputs > 0)
+    {
+      for(i = 1; i <= dtmfoutputs; i++)
+      {
+        // Accessory Output GPIO pin
+        strcpy(Value, "");
+        snprintf(Param, 127, "dtmfgpioout%dpin", i);
+        GetConfigParam(PATH_CONFIG, Param, Value);
+        dtmfoutputGPIO[i] = PinToBroadcom(atoi(Value));
+
+        // Accessory Output GPIO pin label
+        strcpy(Value, "");
+        snprintf(Param, 127, "dtmfgpioout%dlabel", i);
+        GetConfigParam(PATH_CONFIG, Param, dtmfgpiooutlabel[i]);
+
+        // Accessory Output GPIO on code DTMF
+        strcpy(Value, "");
+        snprintf(Param, 127, "dtmfgpioout%don", i);
+        GetConfigParam(PATH_CONFIG, Param, dtmfgpiooutoncode[i]);
+
+        // Accessory Output GPIO off code DTMF
+        strcpy(Value, "");
+        snprintf(Param, 127, "dtmfgpioout%doff", i);
+        GetConfigParam(PATH_CONFIG, Param, dtmfgpiooutoffcode[i]);
+      }
+    }
+  }
+
+  // Monitoring of Accessory Outputs
+
+  // Number of inputs (0 - 10)
+  strcpy(Value, "");
+  GetConfigParam(PATH_CONFIG, "dtmfinputs", Value);
+  dtmfinputs = atoi(Value);
+
+  if (dtmfinputs > 10)
+  {
+    dtmfinputs = 0;
+    system("echo dtmfinputs_in_config_file_out_of_limits >> /home/pi/atv-rptr/logs/error_log.txt");
+  }
+  else
+  {
+    if (dtmfinputs > 0)
+    {
+      for(i = 1; i <= dtmfinputs; i++)
+      {
+        // Accessory Input GPIO pin
+        strcpy(Value, "");
+        snprintf(Param, 127, "dtmfgpioin%dpin", i);
+        GetConfigParam(PATH_CONFIG, Param, Value);
+        dtmfinputGPIO[i] = PinToBroadcom(atoi(Value));
+
+        // Accessory Input GPIO pin label
+        strcpy(Value, "");
+        snprintf(Param, 127, "dtmfgpioin%dlabel", i);
+        GetConfigParam(PATH_CONFIG, Param, dtmfgpioinlabel[i]);
+      }
+    }
   }
 
   // Repeater Ident Config
@@ -323,6 +521,14 @@ void read_config_file()
   if (strcmp(Value, "on") == 0)
   {
     identcwaudio = true;
+    strcpy(Value, "");
+    GetConfigParam(PATH_CONFIG, "identcwlevel", Value);
+    identcwlevel = atoi(Value);
+    if ((identcwlevel < 0) || (identcwlevel > 100))
+    {
+      identcwlevel = 100;
+    }
+    GetConfigParam(PATH_CONFIG, "identcwfile", identcwfile);
   }
 
   // K slide config
@@ -335,6 +541,14 @@ void read_config_file()
   if (strcmp(Value, "on") == 0)
   {
     kcwaudio = true;
+    strcpy(Value, "");
+    GetConfigParam(PATH_CONFIG, "kcwlevel", Value);
+    kcwlevel = atoi(Value);
+    if ((kcwlevel < 0) || (kcwlevel > 100))
+    {
+      kcwlevel = 100;
+    }
+    GetConfigParam(PATH_CONFIG, "kcwfile", kcwfile);
   }
 
   // Carousel config
@@ -395,6 +609,9 @@ void read_config_file()
 
     // Daisy Chain input Code for primary HDMI Switch
     GetConfigParam(PATH_CONFIG, "output2ndhdmicode", output2ndhdmicode);
+
+    // Quad View Code for primary HDMI Switch
+    GetConfigParam(PATH_CONFIG, "outputhdmiquadcode", outputhdmiquadcode);
   }
 
   // Show GPIO in addition to IR?
@@ -424,6 +641,14 @@ void read_config_file()
   if (strcmp(Value, "no") == 0)
   {
     activeinputhold = false;
+  }
+
+  // Show Quad For Multiple Inputs?
+  GetConfigParam(PATH_CONFIG, "showquadformultipleinputs", Value);
+  if (strcmp(Value, "yes") == 0)
+  {
+    showquadformultipleinputs = true;
+printf("\n\n%s\n\n\n", Value);
   }
 
   for(i = 0 ; i <= availableinputs ; i++)
@@ -484,14 +709,37 @@ void setUpGPIO()
     set_mode(localGPIO, inputactiveGPIO[i], 0);
   }
 
-  // Set the PTT GPIO as an output
+  // Set the PTT GPIO as an output and low
   set_mode(localGPIO, pttGPIO, 1);
+  gpio_write(localGPIO, pttGPIO, 0);
 
-  // If GPIO-switched HDMI, set the outputs
+
+  // If GPIO-switched HDMI, set the outputs and set to low
   for (i = 0; i <= 7 ; i++)
   {
     set_mode(localGPIO, outputGPIO[i], 1);
+    gpio_write(localGPIO, outputGPIO[i], 0);
   }
+
+  // Set Accessory output GPIO as outputs and low
+  if (dtmfoutputs > 0)
+  {
+    for (i = 0; i <= dtmfoutputs ; i++)
+    {
+      set_mode(localGPIO, dtmfoutputGPIO[i], 1);
+      gpio_write(localGPIO, dtmfoutputGPIO[i], 0);
+    }
+  }
+
+  // Set Accessory input GPIO as inputs
+  if (dtmfinputs > 0)
+  {
+    for (i = 0; i <= dtmfinputs ; i++)
+    {
+      set_mode(localGPIO, dtmfinputGPIO[i], 0);
+    }
+  }
+  
 
   // Example pigpio code:
 
@@ -502,6 +750,7 @@ void setUpGPIO()
   // gpio_write(localGPIO, GPIO, 1);
 }
 
+
 void update_status_screen()
 {
   int line_height;
@@ -510,6 +759,14 @@ void update_status_screen()
   //int y = 0;
   char display_text[127];
   //char *temp_text[127];
+  int level;
+
+  time_t t; 
+  struct tm tm;
+
+  t = time(NULL);
+  tm = *gmtime(&t);
+
 
   setBackColour(0,0,0);
   clearScreen();
@@ -604,31 +861,90 @@ void update_status_screen()
   snprintf(display_text, 31, "CPU Temp %.1f C", GetCPUTemp());
   Text2(screen_width * 22 / 32, screen_height - (6 * line_height), display_text, font_ptr);
 
+  snprintf(display_text, 31, "UTC Time: %02d:%02d", tm.tm_hour, tm.tm_min);
+  Text2(screen_width * 22 / 32, screen_height - (7 * line_height), display_text, font_ptr);
+
+  if (dtmfinputs > 0)
+  {
+    for (i = 1; i <= dtmfinputs; i++)
+    {
+      level = gpio_read(localGPIO, dtmfinputGPIO[i]);
+      if (level == 0)
+      {
+        snprintf(display_text, 63, "%s: OFF", dtmfgpioinlabel[i]);
+      }
+      if (level == 1)
+      {
+        snprintf(display_text, 63, "%s: ON ", dtmfgpioinlabel[i]);
+      }
+      Text2(screen_width * 22 / 32, screen_height - ((7 + i) * line_height), display_text, font_ptr);
+    }
+  }
+
+  // Show current config
+  snprintf(display_text, 127, "Current Status: %s", StatusForConfigDisplay);
+  Text2(screen_width / 32, screen_height - (15 * line_height), display_text, font_ptr);
+
   //time_t t; 
   //struct tm tm;
 
   //t = time(NULL);
   //tm = *gmtime(&t);
   //printf("now: %d-%02d-%02d %02d:%02d:%02d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-
-
 }
+
+
+void fbiThenKill(char *PathImageFile)
+{
+  char SystemCommand[127];
+
+  snprintf(SystemCommand, 127, "sudo fbi -T 1 -noverbose -a %s >/dev/null 2>/dev/null", PathImageFile);
+  system(SystemCommand);
+  usleep(200000);
+
+  strcpy(SystemCommand, "sudo killall -9 fbi >/dev/null 2>/dev/null");
+  system(SystemCommand);
+  usleep(200000);
+}
+
 
 void *Show_Ident(void * arg)
 {
   uint64_t last_ident;
   uint64_t ident_required;
   uint64_t ident_finish;
-  char SystemCommand[127];
+  uint64_t quiet_hours_check;
+  char identlevelcommand[127];
+  char identplaycommand[127];
 
   last_ident = monotonic_ms();
   ident_required = last_ident  + identinterval * 1000;
   ident_finish = last_ident + (identinterval + identmediaduration) * 1000;
   printf("Starting Ident Thread.  Ident Interval = %d\n", identinterval);
+  quiet_hours_check = monotonic_ms() + 1000;
+  int refresh_status_second_count = 0;
 
   while (run_repeater == true)
   {
     //printf("Ident decision. monotonic = %llu; ident required = %llu ident_finish %llu\n", monotonic_ms(), ident_required, ident_finish);
+
+    // check once per second for quiet hours switching
+    if (monotonic_ms() > quiet_hours_check)
+    {
+      PTTEvent(7);
+      quiet_hours_check = quiet_hours_check + 1000;
+
+      // Periodic Status Screen Refresh
+      if (StatusScreenOveride == true)
+      {
+        if (refresh_status_second_count > 10)
+        {
+          update_status_screen();
+          refresh_status_second_count = 0;
+        }
+        refresh_status_second_count = refresh_status_second_count + 1;
+      }
+    }
 
     if (monotonic_ms() > ident_required)
     {
@@ -639,14 +955,27 @@ void *Show_Ident(void * arg)
 
       // kill vlc?
 
-      // Display the ident, and switch to it
-      snprintf(SystemCommand, 127, "sudo fbi -T 1 -noverbose -a %s >/dev/null 2>/dev/null", identmediafile);
-      system("sudo fbi -T 1 -noverbose -a /home/pi/tmp/ident.jpg >/dev/null 2>/dev/null");
+      // Wait for fbi to be available
+      pthread_mutex_lock(&fbi_lock);
+
+      fbiThenKill(identmediafile);
+
+      // Release fbi
+      pthread_mutex_unlock(&fbi_lock);
+
       Select_HDMI_Switch(0);
 
-      // kill fbi to prevent multiple instances 
-      strcpy(SystemCommand, "(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
-      system(SystemCommand);
+      // Play the audio file if required
+      if (identcwaudio == true)
+      {
+        snprintf(identlevelcommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", identcwlevel);
+        system (identlevelcommand);
+        snprintf(identplaycommand, 127, "aplay %s >/dev/null 2>/dev/null &", identcwfile);
+        system (identplaycommand);
+      }
+
+      // Raise PTT if required
+      PTTEvent(5);
     }
 
     if (monotonic_ms() > ident_finish)
@@ -664,6 +993,9 @@ void *Show_Ident(void * arg)
       {
         printf("Finishing Ident, switching to current input %d\n", inputAfterIdent);
 
+        // Cut PTT if required
+        PTTEvent(6);
+
         // Carousel will refresh on next image
 
         // switch to the current screen
@@ -679,10 +1011,12 @@ void *Show_K_Carousel(void * arg)
 {
   uint64_t media_start;
   bool run_carousel = true;
-  char SystemCommand[127];
   int i;
   int next_i;
   int carouselSource;
+  bool pastendoffirstcarousel = false;
+  char cwlevelcommand[127];
+  char cwplaycommand[127];
 
   printf("Entering the KCarousel thread\n");
 
@@ -690,8 +1024,22 @@ void *Show_K_Carousel(void * arg)
   if ((ident_active == false) && (StatusScreenOveride == false))
   {
     printf("Displaying the K\n");
-    snprintf(SystemCommand, 127, "sudo fbi -T 1 -noverbose -a %s >/dev/null 2>/dev/null", kmediafile);
-    system(SystemCommand);
+
+    pthread_mutex_lock(&fbi_lock);
+
+    fbiThenKill(kmediafile);
+
+    // Release fbi
+    pthread_mutex_unlock(&fbi_lock);
+   
+    // Play the audio file if required
+    if (kcwaudio == true)
+    {
+      snprintf(cwlevelcommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", kcwlevel);
+      system (cwlevelcommand);
+      snprintf(cwplaycommand, 127, "aplay %s >/dev/null 2>/dev/null &", kcwfile);
+      system (cwplaycommand);
+    }
   }
 
   // Now wait kmediaduration seconds
@@ -720,7 +1068,10 @@ void *Show_K_Carousel(void * arg)
     }
   }
   firstCarousel = false;
-     
+
+  pastendoffirstcarousel = false;
+  strcpy(StatusForConfigDisplay, "Displaying the Carousel");
+
   while (run_carousel == true)
   {
     for (i = 1; i <= carouselscenes; i++)
@@ -732,8 +1083,12 @@ void *Show_K_Carousel(void * arg)
       {
         if (strcmp(carouselmediatype[i], "jpg") == 0)          // Scene is an image
         {  
-          snprintf(SystemCommand, 127, "sudo fbi -T 1 -noverbose -a %s >/dev/null 2>/dev/null", carouselfile[i]);
-          system(SystemCommand);
+          pthread_mutex_lock(&fbi_lock);
+
+          fbiThenKill(carouselfile[i]);
+
+          // Release fbi
+          pthread_mutex_unlock(&fbi_lock);
         }
 
         if (strcmp(carouselmediatype[i], "source") == 0)       // Scene is a source
@@ -768,15 +1123,7 @@ void *Show_K_Carousel(void * arg)
           usleep(10000);
         }
       }
-
-      strcpy(SystemCommand, "(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
-      system(SystemCommand);
-
-      if (strcmp(carouselmediatype[i], "jpg") == 0)          // Scene was an image so kill fbi
-      {  
-        snprintf(SystemCommand, 127, "sudo killall -9 fbi >/dev/null 2>/dev/null");
-        system(SystemCommand);
-      }
+      strcpy(StatusForConfigDisplay, "Exiting the Carousel");
 
       if (strcmp(carouselmediatype[i], "source") == 0)       // Scene was a source so reset switch
       {
@@ -795,19 +1142,26 @@ void *Show_K_Carousel(void * arg)
         }
       }
     }
+
+    // Drop the PTT if required at the end of the first carousel
+    if (pastendoffirstcarousel == false)
+    {
+      PTTEvent(3);
+      pastendoffirstcarousel = true;
+    }
   }
   return NULL;
 }
 
 
-void Select_HDMI_Switch(int selection)        // selection is between 0 and availableinputs
+void Select_HDMI_Switch(int selection)        // selection is between -1 (quad), 0 and availableinputs
 {
   int i;
   int thisGPIOlevel;
   char SystemCommand[127];
   char IRCommandStub[63];
 
-  if ((selection < 0)  || (selection > availableinputs))
+  if ((selection < -1)  || (selection > availableinputs))
   {
     printf("ERROR Select_HDMI_Switch called with switch = %d\n", selection);
     selection = 0;
@@ -838,63 +1192,98 @@ void Select_HDMI_Switch(int selection)        // selection is between 0 and avai
 
   if (strcmp(outputswitchcontrol, "ir") == 0)             // ir controlled HDMI switch
   {
-    // IR code here
-
-    // Check for daisy-chained switches
-    if (outputcode[selection][0] == '2')
+    if ((selection >= 0)  && (selection <= availableinputs))
     {
-      //printf("daisy chain \n");
-      snprintf(IRCommandStub, 30, "%s", outputcode[selection] + 1);
-      //printf("IRCommandStub = -%s-\n", IRCommandStub);
-      strcpy(IRCommandStub, outputcode[1]);  // For TESTING
-      snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", IRCommandStub);
-      system(SystemCommand);
+      // Check for daisy-chained switches
+      if (outputcode[selection][0] == '2')
+      {
+        //printf("daisy chain \n");
+        snprintf(IRCommandStub, 30, "%s", outputcode[selection] + 1);
+        //printf("IRCommandStub = -%s-\n", IRCommandStub);
+        strcpy(IRCommandStub, outputcode[1]);  // For TESTING
+        snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", IRCommandStub);
+        system(SystemCommand);
 
-      usleep(200000);     // Let switch settle
+        usleep(200000);     // Let switch settle
 
-      // Select daisy chain input on primary switch
-      snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", output2ndhdmicode);
-      system(SystemCommand);
+        // Select daisy chain input on primary switch
+        snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", output2ndhdmicode);
+        system(SystemCommand);
+      }
+      else
+      {
+        //printf("Simple IR Command\n");
+        snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputcode[selection]);
+        system(SystemCommand);
+      }
     }
-    else
+    else if (selection == -1)                          // Quad View requested
     {
-      //printf("Simple IR Command\n");
-      snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputcode[selection]);
+      snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputhdmiquadcode);
       system(SystemCommand);
     }
   }
+  // Future audio switching code Here
 }
 
 
-void Switchto(int new_output)
+int Switchto(int new_output)
 {
-  char SystemCommand[127];
+  uint64_t announce_start;
+  int i;
+
   // kill VLC
   // fbi cue image
   printf("Entered Switchto for output %d\n", new_output);
 
-  if ((new_output >= 1) && (new_output <= 7))    // fbi announcemedia image
+  if ((new_output >= 1) && (new_output <= 7) && (announcemediaduration[new_output] > 0))    // fbi announcemedia image
   {
-    snprintf(SystemCommand, 127, "sudo fbi -T 1 -noverbose -a %s >/dev/null 2>/dev/null", announcemediafile[new_output]);
-    system(SystemCommand);
+    // Wait for fbi to be available
+    pthread_mutex_lock(&fbi_lock);
+
+    fbiThenKill(announcemediafile[new_output]);
+
+    // Release fbi
+    pthread_mutex_unlock(&fbi_lock);
+
     Select_HDMI_Switch(0);  // Switch to controller image
-    usleep (announcemediaduration[new_output] *1000000);    // delay cue image seconds
+
+    announce_start = monotonic_ms();
+
+    // Set PTT on if appropriate
+    PTTEvent(4);
+
+    while (monotonic_ms() <= announce_start + announcemediaduration[new_output] * 1000)
+    {
+      usleep(10000);
+      for (i = 1; i <= 7; i++)
+      {
+        if (inputActiveInitialState[i] != inputactive[i])
+        {
+          return(1);
+        }
+      }
+    }
   }
 
-  Select_HDMI_Switch(new_output);  // switch to new_output
+  Select_HDMI_Switch(new_output);  // switch to new_output if no change in input switch lines
 
-  // fork 1 sec delay, kill fbi and then fbi K image
-  snprintf(SystemCommand, 127, "sudo fbi -T 1 -noverbose -a %s >/dev/null 2>/dev/null", kmediafile);
-  system(SystemCommand);
+  // Wait for fbi to be available
+  pthread_mutex_lock(&fbi_lock);
+
+  fbiThenKill(kmediafile);
+
+  // Release fbi
+  pthread_mutex_unlock(&fbi_lock);
+
+  return(0);
 }
 
 void DisplayK()
 {
-  char SystemCommand[127];
   printf("Entered DisplayK\n");
+  strcpy(StatusForConfigDisplay, "Displaying the K");
 
-  snprintf(SystemCommand, 127, "sudo fbi -T 1 -noverbose -a %s >/dev/null 2>/dev/null", kmediafile);
-  system(SystemCommand);
   printf("Creating the Carousel Thread\n");
   pthread_create (&thkcarousel, NULL, &Show_K_Carousel, NULL);
 }
@@ -903,40 +1292,71 @@ int priorityDecision()
 {
   int priority_test;
   int i;
-  int decision_result = -1;
+  int decision_result = -2;  // -2 is no active inputs, -1 is quad, 0 is controller, 1 is first rptr input etc
   static int previous_decision_result;
+  int active_input_count = 0;
 
   printf("previous decision result is %d, entering decision process\n", previous_decision_result);
 
-  for (priority_test = 1; priority_test <= 8; priority_test++)
+  // Record initial state to monitor for changes
+  printf("Setting inputActiveInitialState ");
+  for (i = 1; i <= 7; i++)
   {
+    inputActiveInitialState[i] = inputactive[i];
+    printf("%d: %d, ", i, inputActiveInitialState[i]);
+  }
+  printf("\n");
+
+  // Check if quad is required for multiple active inputs
+  if (showquadformultipleinputs == true)
+  {
+    printf("showquadformultipleinputs == true\n");
     for (i = 1; i <= availableinputs; i++)
     {
-      if ((inputprioritylevel[i] == priority_test) && (decision_result == -1) && (inputactive[i] == 1))  // so take first result
+      if ((inputprioritylevel[i] <= 8) && (inputactive[i] == 1))
       {
-        if (priority_test == 1)            // Always switch to the lowest numbered active priority 1 input
+        active_input_count++;
+      }
+    }
+  }
+
+  if (active_input_count > 1)                            // Quad to be displayed
+  {
+    printf("Selecting Quad for Multiple Inputs\n");
+    decision_result = -1;
+  }
+  else                                                   // Not the quad                                   
+  {
+    for (priority_test = 1; priority_test <= 8; priority_test++)
+    {
+      for (i = 1; i <= availableinputs; i++)
+      {
+        if ((inputprioritylevel[i] == priority_test) && (decision_result == -2) && (inputactive[i] == 1))  // so take first result
         {
-          printf("Priority 1: ----- priority_test = %d,i = %d, inputactive[i] = %d\n", priority_test, i, inputactive[i]);
-          decision_result = i;
-        }
-        else                               // priority 2 - 8
-        {
-          printf("Priority %d: ----- priority_test = %d,i = %d, inputactive[i] = %d\n", i, priority_test, i, inputactive[i]);
-          if ((activeinputhold == true) && (inputactive[previous_decision_result] == 1) && (previous_decision_result != 0))  // Use previous selection
+          if (priority_test == 1)            // Always switch to the lowest numbered active priority 1 input
           {
-            decision_result = previous_decision_result;
-            printf("USING PREVIOUS RESULT\n");
-          }
-          else
-          {
+            printf("Priority 1: ----- priority_test = %d,i = %d, inputactive[i] = %d\n", priority_test, i, inputactive[i]);
             decision_result = i;
-            printf("USING HIGHEST PRIORITY RESULT\n");
+          }
+          else                               // priority 2 - 8
+          {
+            printf("Priority %d: ----- priority_test = %d,i = %d, inputactive[i] = %d\n", i, priority_test, i, inputactive[i]);
+            if ((activeinputhold == true) && (inputactive[previous_decision_result] == 1) && (previous_decision_result != 0))  // Use previous selection
+            {
+              decision_result = previous_decision_result;
+              printf("USING PREVIOUS RESULT\n");
+            }
+            else
+            {
+              decision_result = i;
+              printf("USING HIGHEST PRIORITY RESULT\n");
+            }
           }
         }
       }
     }
   }
-  if (decision_result >= 1 )
+  if (decision_result >= -1 )
   {
     previous_decision_result = decision_result;
   }
@@ -957,8 +1377,13 @@ void repeaterEngine()
   firstCarousel = true;
   uint64_t output_overide_timer;
   bool previous_status_screenoveride = false;
+  int inputChangeDuringAnnounce = 0;
+
+  // Turn on the PTT if required
+  PTTEvent(1);
 
   // Show the status screen if required
+  strcpy(StatusForConfigDisplay, "Started Repeater Engine");
   if (StatusScreenOveride == true)
   {
     update_status_screen();
@@ -966,96 +1391,120 @@ void repeaterEngine()
 
   while (run_repeater == true)
   {
+    if (output_overide == true)
+    {
+      strcpy(StatusForConfigDisplay, "Output Override Mode selected");
 
-
-      if (output_overide == true)
+      // Set a timer and select the input on first entry;
+      if (in_output_overide_mode == false)
       {
-        // Set a timer and select the input on first entry;
-        if (in_output_overide_mode == false)
-        {
-          output_overide_timer = monotonic_ms() + 1000 * dtmfactiontimeout;
-          in_output_overide_mode = true;
-
-          Select_HDMI_Switch(output_overide_source);    // Display Controller
-          inputselected = output_overide_source;        // 
-          inputAfterIdent = output_overide_source;      // global for return from ident
-        }
-
-        // Now check for exit conditions
-        if ((dtmfactiontimeout != 0) && (output_overide_timer <= monotonic_ms()))
-        {
-          output_overide = false;
-          in_output_overide_mode = false;
-
-          Select_HDMI_Switch(0);    // Display Controller
-          inputselected = 0;        // 
-          inputAfterIdent = 0;      // global for return from ident
-        }
+        output_overide_timer = monotonic_ms() + 1000 * dtmfactiontimeout;
+        in_output_overide_mode = true;
+        Select_HDMI_Switch(output_overide_source);    // Display Controller
+        inputselected = output_overide_source;        // 
+        inputAfterIdent = output_overide_source;      // global for return from ident
       }
-      else if (inputStatusChange == true)
+
+      // Now check for exit conditions
+      if ((dtmfactiontimeout != 0) && (output_overide_timer <= monotonic_ms()))
       {
-        // Normal operation
-        current_output = inputselected;
-        new_output = priorityDecision();
+        strcpy(StatusForConfigDisplay, "Output Override Mode deselected");
 
-        printf("Input status change.  Current Output = %d, New Output = %d\n", current_output, new_output);
+        output_overide = false;
+        in_output_overide_mode = false;
 
-        if ((new_output != current_output) || ((previous_status_screenoveride = true) && (StatusScreenOveride == false))) // only change if there is a change
+        Select_HDMI_Switch(0);    // Display Controller
+        inputselected = 0;        // 
+        inputAfterIdent = 0;      // global for return from ident
+      }
+    }
+    else if (inputStatusChange == true)
+    {
+      strcpy(StatusForConfigDisplay, "Input Status Change Detected");
+
+      // Normal operation
+      current_output = inputselected;
+      new_output = priorityDecision();
+
+      printf("Input status change.  Current Output = %d, New Output = %d\n", current_output, new_output);
+
+      if ((new_output != current_output) || ((previous_status_screenoveride = true) && (StatusScreenOveride == false))) // only change if there is a change
+      {
+        // Reset the exit from status screen trigger
+        if ((previous_status_screenoveride = true) && (StatusScreenOveride == false))
         {
-          // Reset the exit from status screen trigger
-          if ((previous_status_screenoveride = true) && (StatusScreenOveride == false))
+          previous_status_screenoveride = false;
+        }
+
+        if (new_output == -2)  // No Active Inputs
+        {
+          strcpy(StatusForConfigDisplay, "No Active Inputs");
+
+          Select_HDMI_Switch(0);  // Display Controller
+          inputselected = 0;      // Is this still required??
+          inputAfterIdent = 0;      // global for return from ident
+          if ((ident_active == false) && (StatusScreenOveride == false))
           {
-            previous_status_screenoveride = false;
+            DisplayK();  // and then go to carousel
           }
 
-          if (new_output == -1)  // No Active Inputs
+        }
+        else                   // An input is active
+        {
+          if (StatusScreenOveride == false)  // Not on status screen
           {
-            Select_HDMI_Switch(0);  // Display Controller
-            inputselected = 0;      // Is this still required??
-            inputAfterIdent = 0;      // global for return from ident
-            if ((ident_active == false) && (StatusScreenOveride == false))
-            {
-              DisplayK();  // and then go to carousel
-            }
+            strcpy(StatusForConfigDisplay, "Announcing New Input");
+
+            inputChangeDuringAnnounce = Switchto(new_output);   // So announce the new input and switch to it, show K on controller
+            printf("inputChangeDuringAnnounce = %d \n", inputChangeDuringAnnounce);
           }
-          else
+          if (inputChangeDuringAnnounce == 0)  // Input stayed on until after input was selected
           {
-            //if (StatusScreenOveride == true)
-            //{
-            //  update_status_screen();
-            //  Select_HDMI_Switch(0);
-            //}
-            //else
-            if (StatusScreenOveride == false)
-            {
-              Switchto(new_output);
-            }
+            strcpy(StatusForConfigDisplay, "Switching to New Input");
             inputselected = new_output; // Is this still required?
             inputAfterIdent = new_output; // global for return from ident
-            //pthread_join(thkcarousel, NULL);
           }
-        }
-        inputStatusChange = false;
-
-        if (StatusScreenOveride == true)
-        {
-          update_status_screen();
-          Select_HDMI_Switch(0);
+          //pthread_join(thkcarousel, NULL);
         }
       }
 
+      if (inputChangeDuringAnnounce != 0)  // So something happened during the input announcement
+      {
+        strcpy(StatusForConfigDisplay, "New Input dropped during Announce");
+
+        inputStatusChange = true;
+        current_output = 0;
+        new_output = -2;
+        inputChangeDuringAnnounce = 0;
+      }
+      else
+      {
+        inputStatusChange = false;
+      }
+
+      if (StatusScreenOveride == true)
+      {
+        update_status_screen();
+        Select_HDMI_Switch(0);
+      }
+    }
     usleep (10000); // 10ms loop
   }
 }
-
 
 
 static void
 terminate(int dummy)
 {
   run_repeater = false;
-  pigpio_stop(localGPIO); // Disconnect pigpio from local Pi. 
 
+  // Deselect PTT and close GPIO
+  PTTEvent(0);
+  usleep(100000);
+  pigpio_stop(localGPIO);
+
+  // Display caption
+  fbiThenKill("/home/pi/tmp/stopped.png");
   char Commnd[255];
 
   printf("Terminate\n");
@@ -1083,6 +1532,14 @@ int main(int argc, char *argv[])
     sigaction(i, &sa, NULL);
   }
 
+  printf("BATC Repeater Controller Starting Up\n");
+  printf("Reading the Config File\n");
+
+  read_config_file();
+
+  printf("BATC Repeater Controller for %s\n", callsign);
+  printf("Initialising GPIO\n");
+
   // Initialise GPIO
   localGPIO = pigpio_start(0, 0); // Connect to local Pi.
 
@@ -1093,10 +1550,7 @@ int main(int argc, char *argv[])
   }
 
   setUpGPIO();
-
-  read_config_file();
-
-  printf("BATC Repeater Controller for %s\n", callsign);
+  printf("Initialising the Status Screen\n");
 
   initScreen();
 
@@ -1122,7 +1576,7 @@ int main(int argc, char *argv[])
   printf("Starting the main repeater controller\n");
   repeaterEngine();         // This keeps the repeater running
 
-  // Code does not get to here
+  // Flow does not get to here
 
   return 0;
 }

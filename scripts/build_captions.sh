@@ -118,3 +118,35 @@ convert -size 1280x100 xc:transparent -fill white \
 convert /home/pi/atv-rptr/media/tcfw.jpg /home/pi/tmp/caption.png \
   -geometry +0+597 -composite /home/pi/tmp/tcfw.jpg
 
+# Build the "Stopped" Slide
+rm /home/pi/tmp/stopped.jpg >/dev/null 2>/dev/null
+rm /home/pi/tmp/caption.png >/dev/null 2>/dev/null
+convert -size 1280x720 xc:black -fill white \
+  -gravity North -pointsize 40 -annotate 0 "ATV Repeater $CALLSIGN" \
+  -gravity Center -pointsize 40 -annotate 0 "Controller Software Not Running" \
+  -gravity South -pointsize 40 -annotate 0 "Restart Controller software by SSH Control or Reboot" \
+  /home/pi/tmp/stopped.png
+
+# Build the default Ident CW Audio file and convert to 32000 rate to prevent glitches
+IDENTCWAUDIO=$(get_config_var identcwaudio $CONFIGFILE)
+if [[ "$IDENTCWAUDIO" == "on" ]]; then
+  IDENTCWSPEED=$(get_config_var identcwspeed $CONFIGFILE)
+  IDENTCWPITCH=$(get_config_var identcwpitch $CONFIGFILE)
+  cd /home/pi/tmp
+  echo "$CALLSIGN" > callsign.txt
+  /home/pi/atv-rptr/bin/txt2morse -f "$IDENTCWPITCH" -r "$IDENTCWSPEED" -o identtemp.wav callsign.txt
+  sox identtemp.wav -r 32000 ident.wav
+fi
+
+# Build the default "K" CW Audio file and convert to 32000 rate to prevent glitches
+KCWAUDIO=$(get_config_var kcwaudio $CONFIGFILE)
+if [[ "$KCWAUDIO" == "on" ]]; then
+  KCWSPEED=$(get_config_var kcwspeed $CONFIGFILE)
+  KCWPITCH=$(get_config_var kcwpitch $CONFIGFILE)
+  cd /home/pi/tmp
+  echo K > k.txt
+  /home/pi/atv-rptr/bin/txt2morse -f "$KCWPITCH" -r "$KCWSPEED" -o ktemp.wav k.txt
+  sox ktemp.wav -r 32000 k.wav
+fi
+
+

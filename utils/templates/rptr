@@ -1,0 +1,5 @@
+/var/log/rptr/error_log.txt {
+	size 1k
+	copytruncate
+	rotate 7
+}

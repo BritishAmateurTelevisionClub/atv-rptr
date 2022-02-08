@@ -2,6 +2,18 @@
 
 # BATC ATV Repeater Install by davecrump on 20220101
 
+BuildLogMsg() {
+  if [[ "$1" == "0" ]]; then
+    echo $(date -u) "Build Success " "$2" | sudo tee -a /var/log/rptr/initial_build_log.txt  > /dev/null
+  else
+    echo $(date -u) "Build Fail    " "$2" | sudo tee -a /var/log/rptr/initial_build_log.txt  > /dev/null
+  fi
+}
+
+# Create the directory and first entry for the build and update logs
+sudo mkdir /var/log/rptr
+echo $(date -u) "New Build started" | sudo tee -a /var/log/rptr/initial_build_log.txt  > /dev/null
+
 # Check current user
 whoami | grep -q pi
 if [ $? != 0 ]; then
@@ -61,6 +73,7 @@ echo "----- Installing Packages -----"
 echo "-------------------------------"
 
 sudo apt-get -y install git
+SUCCESS=$?; BuildLogMsg $SUCCESS "git install"
 sudo apt-get -y install cmake 
 sudo apt-get -y install fbi
 sudo apt-get -y install libjpeg-dev
@@ -69,6 +82,9 @@ sudo apt-get -y install imagemagick
 sudo apt-get -y install ncat
 sudo apt-get -y install lirc
 sudo apt-get -y install ir-keytable
+sudo apt-get -y install multimon-ng
+sudo apt-get -y install sox
+sudo apt-get -y install vlc
 
 cd /home/pi
 
@@ -108,13 +124,15 @@ sudo systemctl enable pigpiod
 echo
 echo "-----------------------------------------"
 echo "----- Downloading Repeater Software -----"
-echo "------------------------------------------"
-wget https://github.com/${GIT_SRC}/atv-rptr/archive/master.zip
+echo "-----------------------------------------"
+
+cd /home/pi
+wget https://github.com/${GIT_SRC}/atv-rptr/archive/refs/heads/main.zip -O main.zip
 
 # Unzip the repeater software and copy to the Pi
-unzip -o master.zip
+unzip -o main.zip
 mv atv-rptr-main atv-rptr
-rm master.zip
+rm main.zip
 cd /home/pi
 
 
@@ -129,6 +147,18 @@ cd /home/pi/atv-rptr/src/rptr
 touch main.c
 make
 sudo make install
+cd /home/pi
+
+# Compile the txt2morse software
+echo
+echo "------------------------------"
+echo "----- Compiling txt2morse ----"
+echo "------------------------------"
+
+cd /home/pi/atv-rptr/src/txt2morse
+touch txt2morse.c
+make
+cp /home/pi/atv-rptr/src/txt2morse/build/txt2morse /home/pi/atv-rptr/bin/txt2morse
 cd /home/pi
 
 # Download, compile and install the executable for hardware shutdown button
@@ -157,7 +187,6 @@ echo "alias menu='/home/pi/atv-rptr/scripts/menu.sh menu'" >> /home/pi/.bash_ali
 echo "alias urptr='/home/pi/atv-rptr/utils/update_rptr.sh'" >> /home/pi/.bash_aliases
 echo "alias rptr='/home/pi/atv-rptr/utils/run_rptr.sh'" >> /home/pi/.bash_aliases
 echo "alias stop='/home/pi/atv-rptr/utils/stop.sh'" >> /home/pi/.bash_aliases
-echo "alias restart='/home/pi/atv-rptr/utils/restart.sh'" >> /home/pi/.bash_aliases
 
 echo if test -z \"\$SSH_CLIENT\" >> ~/.bashrc 
 echo then >> ~/.bashrc
@@ -173,9 +202,17 @@ if !(grep global_cursor_default /boot/cmdline.txt) then
   sudo sed -i '1s,$, vt.global_cursor_default=0,' /boot/cmdline.txt
 fi
 
+# Copy the log file rotation configuration
+sudo cp /home/pi/atv-rptr/utils/templates/rptr /etc/logrotate.d/rptr
+
 # Record Version Number
 cp /home/pi/atv-rptr/latest_version.txt /home/pi/atv-rptr/config/installed_version.txt
 cd /home/pi
+
+# Log Completed Build Details
+INSTALLEDVERSION=$(head -c 9 /home/pi/atv-rptr/config/installed_version.txt)
+SUCCESS="0"; BuildLogMsg $SUCCESS "Completed Install of Version "$INSTALLEDVERSION""
+echo $(date -u) "Initial Install of Version "$INSTALLEDVERSION"" | sudo tee -a /var/log/rptr/update_log.txt  > /dev/null
 
 # Save git source used
 echo "${GIT_SRC}" > /home/pi/atv-rptr/config/${GIT_SRC_FILE}

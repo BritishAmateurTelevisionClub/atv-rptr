@@ -1,2 +1,7 @@
-202201010 Initial Build
+202202080
+Beta Build
+(without Clock, i2c audio switching, VLC carousel or hardware shutdown button)
+
+202201010
+Initial Build
 

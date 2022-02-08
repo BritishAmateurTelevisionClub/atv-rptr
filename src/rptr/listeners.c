@@ -23,6 +23,11 @@
 #include "listeners.h"
 #include "look-ups.h"
 
+#define PATH_CONFIG "/home/pi/atv-rptr/config/repeater_config.txt"
+
+int PTTEvent(int);
+
+
 void *InputStatusListener(void * arg)
 {
   int i;
@@ -69,7 +74,7 @@ void *InputStatusListener(void * arg)
       }
     }
 
-    if ((change1Detected == true) && (validChangeDetected == true))
+    if ((change1Detected == true) && (validChangeDetected == true) && (beaconmode == false))
     {
       printf("Input Status - ");
       for (i = 1; i <= availableinputs; i++)
@@ -103,7 +108,7 @@ void die(char *s)
 	exit(1);
 }
 
-//int main(void)
+
 void *SocketListener(void * arg)
 {
 	struct sockaddr_in si_me, si_other;
@@ -163,24 +168,13 @@ void *SocketListener(void * arg)
         }
 
         // Check for valid command
-        if ((strcmp(buf, "00") == 0) || ((atoi(buf) >= 1) && (atoi(buf) <= 99)))
+        if ((strcmp(buf, "00") == 0) || ((atoi(buf) >= 1) && (atoi(buf) <= 99))
+         || ((atoi(buf) >= 90000) && (atoi(buf) <= 99990)))
         {
           UDP_Command(atoi(buf));
         }
 
-        //if (strcmp(buf, "00") == 0)
-        //{
-        //  inputStatusChange = true;
-        //  StatusScreenOveride = false;
-        //}
-
-        //if (strcmp(buf, "01") == 0)
-        //{
-        //  inputStatusChange = true;
-        //  StatusScreenOveride = true;
-        //}
-		
-		//now reply the client with the same data
+		//now reply the client with the same data (Not used)
 		//if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == -1)
 		//{
 		//	die("sendto()");
@@ -204,6 +198,7 @@ void UDP_Command(int command_code)
     printf("Reset Code received\n");
     return;
   }
+
   if (command_code == atoi(dtmfstatusviewcode))
   {
     inputStatusChange = true;
@@ -211,6 +206,16 @@ void UDP_Command(int command_code)
     output_overide = false;
     in_output_overide_mode = false;
     printf("Status Code received\n");
+    return;
+  }
+
+  if (command_code == atoi(dtmfquadviewcode))
+  {
+    in_output_overide_mode = false;  // This will reset the timer
+    inputStatusChange = true;
+    StatusScreenOveride = false;
+    output_overide = true;
+    output_overide_source = -1;  // Quad View code
     return;
   }
 
@@ -227,6 +232,43 @@ void UDP_Command(int command_code)
       return;
     }
   }
+
+  if (dtmfoutputs > 0)
+  {
+    for (i = 1; i <= dtmfoutputs; i++)
+    {
+      if (command_code == atoi(dtmfgpiooutoncode[i]))
+      {
+        gpio_write(localGPIO, dtmfoutputGPIO[i], 1);
+      }
+      if (command_code == atoi(dtmfgpiooutoffcode[i]))
+      {
+        gpio_write(localGPIO, dtmfoutputGPIO[i], 0);
+      }
+    }
+  }
+
+  if (command_code == atoi(dtmfkeepertxoffcode))
+  {
+    transmitenabled = false;
+    PTTEvent(0);
+    SetConfigParam(PATH_CONFIG, "transmitenabled", "no");
+    return;
+  }
+
+  if (command_code == atoi(dtmfkeepertxoncode))
+  {
+    transmitenabled = true;
+    PTTEvent(2);
+    SetConfigParam(PATH_CONFIG, "transmitenabled", "yes");
+    return;
+  }
+
+  if (command_code == atoi(dtmfkeeperrebootcode))
+  {
+    system("sudo reboot now");
+    return;
+  }
 }
 
 //pi@raspberrypi:~ $ ncat -v 127.0.0.1 8888 -u
@@ -234,5 +276,186 @@ void UDP_Command(int command_code)
 //Ncat: Connected to 127.0.0.1:8888.
 //hello
 
+
+int PTTEvent(int EventType)
+{
+  // PTT Event Type List
+  // 0 Unconditional off
+  // 1 Unconditional on
+  // 2 Initial Start-up
+  // 3 End of first run of carousel
+  // 4 Start of Input Announce
+  // 5 Start of Ident
+  // 6 End of Ident
+  // 7 Check for quiet hours and second half hour (called once per second)
+
+  bool quiet_hours = false;
+  bool secondhalfhour = false;
+  int utc24time = 0;
+  static bool previous_quiet_hours;
+  static bool previous_secondhalfhour;
+  time_t t; 
+  struct tm tm;
+
+  t = time(NULL);
+  tm = *gmtime(&t);
+  utc24time = tm.tm_hour * 100 + tm.tm_min;
+
+  //printf("24 hour time = %d\n", utc24time);
+
+  if (EventType == 0)
+  {
+    gpio_write(localGPIO, pttGPIO, 0);
+    return(0);
+  }
+  if (EventType == 1)
+  {
+    gpio_write(localGPIO, pttGPIO, 1);
+    return(1);
+  }
+
+  // Now work out if we are in quiet hours
+  if (hour24operation == true)
+  {
+    quiet_hours = false;
+  }
+  else
+  {
+    if ((utc24time < operatingtimestart) || (utc24time > operatingtimefinish))  // in quiet hours
+    {
+      quiet_hours = true;
+    }
+    else
+    {
+      quiet_hours = false;
+    }
+  }
+
+  // Now work out if we are in the second half hour with Power Save
+  if ((halfhourpowersave == true) && (quiet_hours == false) && (tm.tm_min > 29) && (tm.tm_min < 60))
+  {
+    secondhalfhour = true;
+  }
+
+  if (transmitenabled == true)
+  {
+    switch(EventType)
+    {
+      case 2:                               // Initial Start-up
+        if (quiet_hours == true)            // Don't transmit on start-up in quiet hours
+        {
+          gpio_write(localGPIO, pttGPIO, 0);
+          return(0);
+        }
+        else      // transmit, even if only until the end of the first sequence
+        {
+          gpio_write(localGPIO, pttGPIO, 1);
+          return(1);
+        }
+        break;
+      case 3:                                 // End of first run of carousel
+                                              // So drop carrier if in quiet hours
+                                              // or transmitwhennotinuse = false
+                                              // or secondhalfhour = true
+         if ((quiet_hours == true)
+          || (transmitwhennotinuse == false) || (secondhalfhour == true))
+         {
+           gpio_write(localGPIO, pttGPIO, 0);
+           return(0);
+         }
+         break;
+      case 4:                                  // Start of Input Announce
+                                               // So raise carrier if 
+                                               // secondhalfhour = true or
+                                               // (transmitwhennotinuse = false or
+                                               // repeatduringquiethours = true and quiet_hours == true)
+        if ((secondhalfhour == true) || (transmitwhennotinuse == false)
+         || ((quiet_hours == true) && (repeatduringquiethours == true)))
+        {
+          gpio_write(localGPIO, pttGPIO, 1);
+          return(1);
+        }
+        break;
+      case 5:                                  // Start of Ident
+                                               // So raise carrier if 
+                                               // secondhalfhour = true or
+                                               // transmitwhennotinuse = false or
+                                               // identduringquiethours = true and quiet_hours == true
+        if ((secondhalfhour == true) || (transmitwhennotinuse == false)
+         || ((quiet_hours == true) && (identduringquiethours == true)))
+        {
+          gpio_write(localGPIO, pttGPIO, 1);
+          return(1);
+        }
+        break;
+      case 6:                                  // End of Ident
+                                               // So drop carrier if 
+                                               // secondhalfhour = true and (inputAfterIdent == 0)
+                                               // or
+                                               // quiet_hours == true and (inputAfterIdent == 0)
+                                               // or
+                                               // transmitwhennotinuse = false and (inputAfterIdent == 0)
+        if (((secondhalfhour == true) && (inputAfterIdent == 0))
+         || ((quiet_hours == true) && (inputAfterIdent == 0))
+         || ((transmitwhennotinuse == false) && (inputAfterIdent == 0)))
+        {
+          gpio_write(localGPIO, pttGPIO, 0);
+          return(0);
+        }
+        break;
+      case 7:                                  // Periodic check for quiet hours and second half hour
+                                               // First check if there has been any change
+        if ((quiet_hours == previous_quiet_hours) && (secondhalfhour == previous_secondhalfhour))
+        {
+          return(2);
+        }
+        else if (quiet_hours != previous_quiet_hours) // Quiet hours has Changed
+        {
+                                               // So raise carrier if 
+                                               // quiet_hours == false and transmitwhennotinuse = false
+          if ((quiet_hours == false) && (transmitwhennotinuse == false))
+          {
+            gpio_write(localGPIO, pttGPIO, 1);
+            previous_quiet_hours = quiet_hours;
+            return(1);
+          }
+                                               // Drop carrier if 
+                                               // quiet_hours == true and (inputAfterIdent == 0)
+          if ((quiet_hours == true) && (inputAfterIdent == 0))
+          {
+            gpio_write(localGPIO, pttGPIO, 0);
+            previous_quiet_hours = quiet_hours;
+            return(0);
+          }
+        }
+        else if (secondhalfhour != previous_secondhalfhour) // Half hour has changed
+        {
+                                               // So raise carrier if 
+                                               // secondhalfhour = false and not in quiet hours and 
+                                               // transmitwhennotinuse = false
+          if ((secondhalfhour == false) && (quiet_hours == false) && (transmitwhennotinuse == false))
+          {
+            gpio_write(localGPIO, pttGPIO, 1);
+            previous_secondhalfhour = secondhalfhour;
+            return(1);
+          }
+                                               // Drop carrier if 
+                                               // secondhalfhour == true and (inputAfterIdent == 0)
+          if ((secondhalfhour == true) && (inputAfterIdent == 0))
+          {
+            gpio_write(localGPIO, pttGPIO, 0);
+            previous_secondhalfhour = secondhalfhour;
+            return(0);
+          }
+        }
+        break;
+      default:                               // PTT Off
+        gpio_write(localGPIO, pttGPIO, 0);
+        return(0);
+      break;
+    }
+  }
+  return(0);
+}
 
 
