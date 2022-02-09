@@ -81,6 +81,7 @@ sudo killall -9 fbi >/dev/null 2>/dev/null
 sudo killall rptr >/dev/null 2>/dev/null
 
 ## Check which update to load
+GIT_SRC_FILE=".atv-rptr_gitsrc"
 GIT_SRC="BritishAmateurTelevisionClub"
 
 if [ "$1" == "-d" ]; then
@@ -89,15 +90,13 @@ if [ "$1" == "-d" ]; then
 fi
 
 if [ "$GIT_SRC" == "BritishAmateurTelevisionClub" ]; then
-  echo "Updating to latest Production Bullseye BATC ATV Repeater RPi 4 build";
+  echo "Updating to latest Production Buster Legacy BATC ATV Repeater RPi 4 build";
 elif [ "$GIT_SRC" == "davecrump" ]; then
-  echo "Updating to latest development Bullseye BATC ATV Repeater RPi 4 build";
+  echo "Updating to latest development Buster Legacy BATC ATV Repeater RPi 4 build";
 else
-  echo "Updating to latest ${GIT_SRC} Custom Bullseye BATC ATV Repeater RPi 4 build";
+  echo "Invalid parameter";
+  exit
 fi
-
-printf "Pausing Repeater Controller if running.\n\n"
-# sudo killall keyedstream >/dev/null 2>/dev/null
 
 DisplayUpdateMsg "Step 3 of 10\nSaving Current Config\n\nXXX-------"
 
@@ -118,7 +117,7 @@ cp -f -r "$PATHCONFIG"/repeater_config.txt "$PATHUBACKUP"/repeater_config.txt
 cp -f -r /home/pi/atv-rptr/config/installed_version.txt "$PATHUBACKUP"/prev_installed_version.txt
 PREVINSTALLEDVERSION=$(head -c 9 /home/pi/atv-rptr/config/installed_version.txt)
 echo $(date -u) "Version before Update was "$PREVINSTALLEDVERSION"" | sudo tee -a /var/log/rptr/update_log.txt  > /dev/null
-
+echo $(date -u) "Loading update from "$GIT_SRC"" | sudo tee -a /var/log/rptr/update_log.txt  > /dev/null
 
 DisplayUpdateMsg "Step 4 of 10\nUpdating Software Package List\n\nXXXX------"
 

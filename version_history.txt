@@ -1,4 +1,4 @@
-202202081
+202202082
 Beta Build
 (without Clock, i2c audio switching, VLC carousel or hardware shutdown button)
 
