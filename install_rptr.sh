@@ -30,7 +30,7 @@ if [ $? != 0 ]; then
   echo "The Repeater Controller requires the Raspios Buster Lite (Legacy) operating system"
   echo "You may have used bullseye, which is the latest, but not suitable for this software"
   echo 
-  echo "Press any key to exit
+  echo "Press any key to exit"
   read -n 1
   printf "\n"
   if [[ "$REPLY" = "d" || "$REPLY" = "D" ]]; then  # Allow to proceed for development
