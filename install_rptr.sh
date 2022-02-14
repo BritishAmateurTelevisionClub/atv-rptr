@@ -132,6 +132,10 @@ cd /home/pi
 sudo raspi-config nonint do_boot_behaviour B2
 SUCCESS=$?; BuildLogMsg $SUCCESS "raspi-config auto-login"
 
+# Enable i2c
+sudo raspi-config nonint do_i2c 0
+SUCCESS=$?; BuildLogMsg $SUCCESS "raspi-config enable i2c"
+
 # set the framebuffer to 32 bit depth by disabling dtoverlay=vc4-fkms-v3d
 #echo
 #echo "------------------------------------"

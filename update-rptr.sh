@@ -191,6 +191,10 @@ echo "----- Amending /boot/config.txt ----"
 echo "------------------------------------"
 
 # Enable i2c
+sudo raspi-config nonint do_i2c 0
+SUCCESS=$?; UpdateLogMsg $SUCCESS "raspi-config enable i2c"
+
+# Enable i2c
 sudo sed -i "/^#dtparam=i2c_arm=on/c\dtparam=i2c_arm=on" /boot/config.txt
 grep -q '^dtoverlay=i2c-gpio,i2c_gpio_sda=14,i2c_gpio_scl=15' /boot/config.txt
 if [ $? != 0 ]; then
