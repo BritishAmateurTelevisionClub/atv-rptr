@@ -1,6 +1,7 @@
 # Text file defining behaviour and config of the BATC HDMI Repeater Design
 # Comments must be on their own line
-# Read at boot time.  Only modified from console menu or text editor
+# Read at boot time.  Only modified from console menu or text editor, except 
+# transmitenabled which is amended by dtmfkeepertxoff or dtmfkeepertxon
 
 # Station Details
 callsign=GB3HV/A
@@ -10,8 +11,14 @@ locator=IO91CC
 # Used to size captions and layout display.  NOT to set output
 vidout=hdmi1080
 
+# Ident and K CW audio output: hdmi, jack or usb
+# This IS used to set the output port (but not the hdmi keep-alive)
+audioout=hdmi
+
 # Turn on low level audio noise to keep hdmi audio active? yes/no
+# Level %
 audiokeepalive=yes
+audiokeepalivelevel=85
 
 # Enable/disable transmit ptt active? yes/no
 transmitenabled=yes
@@ -37,15 +44,14 @@ operatingtimefinish=2330
 repeatduringquiethours=no
 identduringquiethours=no
 
-# Transmit PTT Demand physical pin (available pins are 40 .....)
+# Transmit PTT Demand physical pin (recommended 40)
 pttgpiopin=40
 
-# Local (144.75 FM from usb audio dongle) audio could be inserted on carousel
-# Options are off, both, left right (mono from USB dongle)
-carouselusbaudiomode=off
-carouselusbaudiogain=100
+# Front Panel Shutdown Enabled? and physical GPIO Pin (recommended 26)
+fpshutdown=no
+fpsdgpiopin=26
 
-# DTMF control
+# DTMF control - uses white "Portsdown/Langstone" USB dongle input
 # Control is on/off.  Gain is %.  Timeout is in seconds
 # All dtmf codes are of the format *xx#.  Only xx are defined below.  Examples:
 dtmfcontrol=on
@@ -54,12 +60,15 @@ dtmfactiontimeout=600
 dtmfreset=00
 dtmfstatusview=01
 dtmfquadview=04
+dtmftalkbackaudioenable=07
+dtmftalkbackaudiodisable=08
 
 # Keeper codes are 5 digit and must start with 9 (*9xxxx#)
 dtmfkeepertxoff=97350
 dtmfkeepertxon=97351
 dtmfkeeperreboot=97359
 
+# User codes for direct input select (use dtmfreset to seselect)
 dtmfselectinput0=10
 dtmfselectinput1=11
 dtmfselectinput2=12
@@ -69,7 +78,7 @@ dtmfselectinput5=15
 dtmfselectinput6=16
 dtmfselectinput7=17
 
-# Accessory DTMF Control examples
+# RPi GPIO Accessory DTMF Control examples
 dtmfoutputs=1
 dtmfgpioout1pin=15
 dtmfgpioout1label=shack_light
@@ -80,6 +89,19 @@ dtmfinputs=1
 dtmfgpioin1pin=8
 dtmfgpioin1label=cabinet_door
 
+# i2c Accessory DTMF Control examples.  MCP23017. Max 16 lines either in or out
+i2cioaddress=0
+
+i2cdtmfoutputs=1
+i2cdtmfgpioout1pin=a0
+i2cdtmfgpioout1label=shack_heater
+i2cdtmfgpioout1on=51
+i2cdtmfgpioout1off=61
+
+i2cdtmfinputs=1
+i2cdtmfgpioin1pin=b0
+i2cdtmfgpioin1label=cabinet_lid
+
 # Background image for Caption Slides
 backimage=/home/pi/atv-rptr/media/batc_background.jpg
 
@@ -88,46 +110,30 @@ identinterval=900
 identmediatype=jpg
 identmediaduration=5
 identmediafile=/home/pi/tmp/ident.jpg
-identcwaudio=off
+identcwaudio=on
 identcwspeed=12
 identcwpitch=800
-identcwlevel=100
+identcwlevel=85
 identcwfile=/home/pi/tmp/ident.wav
 
 # K info.  Pitch in Hz, speed in wpm, level is %
 kmediatype=jpg
 kmediaduration=5
 kmediafile=/home/pi/tmp/k.jpg
-kcwaudio=off
+kcwaudio=on
 kcwspeed=12
 kcwpitch=800
-kcwlevel=100
+kcwlevel=85
 kcwfile=/home/pi/tmp/k.wav
 
 # Carousel info.  Max 99 scenes
 # options for type are jpg, (mp4 not implemented yet), status or source.  For source, file is source number
 # which can be a virtual source such as a grid of 4 images
-#carouselscenes=6
+
 carouselscenes=3
 carousel01mediatype=jpg
 carousel01file=/home/pi/tmp/tcfw.jpg
 carousel01mediaduration=10
-#carousel02mediatype=jpg
-#carousel02file=/home/pi/custom_media/explain.jpg
-#carousel02mediaduration=2
-#carousel03mediatype=jpg
-#carousel03file=/home/pi/custom_media/block_slide.jpg
-#carousel03mediaduration=2
-#carousel04mediatype=jpg
-#carousel04file=/home/pi/custom_media/farnham_site.jpg
-#carousel04mediaduration=2
-#carousel05mediatype=source
-#carousel05file=1
-#carousel05mediaduration=5
-#carousel06mediatype=source
-#carousel06file=4
-#carousel06mediaduration=5
-
 carousel02mediatype=jpg
 carousel02file=/home/pi/atv-rptr/media/pm5544w.jpg
 carousel02mediaduration=10
@@ -135,37 +141,60 @@ carousel03mediatype=jpg
 carousel03file=/home/pi/atv-rptr/media/75cbw.jpg
 carousel03mediaduration=10
 
+#carousel05mediatype=source
+#carousel05file=1
+#carousel05mediaduration=5
+#carousel06mediatype=source
+#carousel06file=4
+#carousel06mediaduration=5
+
+# Audio switch can be "hdmi" or "i2c".  i2c needs MCP23008 chip address
+audioswitch=hdmi
+audioi2caddress=7
+
+# talkback (144.75) audio can be turned on or off using the MCP23008 i2c switcher
+talkbackaudio=on
+talkbackaudioi2cbit=7
+
 # Input config
 # Recommended gpio pins for "input active" are 32, 35, 18, 22, 16, 19 and 21
 
 # announcemediatype determines the player used
 
-# hdmi switcher can use "ir" or "gpio"
+# Switcher can use "ir" or "gpio" or "i2c"
 # IR uses a TX on GPIO pin 12
-# GPIO uses pins 36, 37, 38, 33, 31, 29, 23, 24 
-
+# GPIO uses pins 36, 37, 38, 33, 31, 29, 23, 24.  Can be enabled with ir or i2c
+# i2c uses FMS6501A on Output channel 1
 # activeinputhold (yes/no) means that lower priority inputs do not get replaced by higher priority (except pri 1)
-# Show Quad is yes/no
+# Show Quad is yes/no and overides activeinputhold
 
 availableinputs=6
 activeinputhold=no
 showquadformultipleinputs=yes
+cascadedswitches=no
 
 outputswitchcontrol=ir
 showoutputongpio=yes
 outputhdmiresetcode=nec:0x17
-output2ndhdmicode=nec:0x08
+output2ndhdmicode=nec:0x17
 outputhdmiquadcode=nec:0x18
+outputi2caddress=3
+outputi2cquadchannel=9
 
 input0name=Controller
 output0code=nec:0x17
+#output0code=2nec:0x17 (daisy chain)
 output0hdmiswitchpin=36
+output0i2cchannel=1
+output0audioi2cbit=0
 
 input1name=Stream Input
 input1prioritylevel=1
 input1activegpiopin=32
 output1code=nec:0x12
 output1hdmiswitchpin=37
+output1i2cchannel=2
+output1audioi2cbit=1
 input1announcemediatype=jpg
 input1announcemediafile=/home/pi/tmp/input1.jpg
 input1announcemediaduration=3
@@ -175,6 +204,8 @@ input2prioritylevel=2
 input2activegpiopin=35
 output2code=nec:0x59
 output2hdmiswitchpin=38
+output2i2cchannel=3
+output2audioi2cbit=2
 input2announcemediatype=jpg
 input2announcemediafile=/home/pi/tmp/input2.jpg
 input2announcemediaduration=3
@@ -184,6 +215,8 @@ input3prioritylevel=3
 input3activegpiopin=18
 output3code=nec:0x08
 output3hdmiswitchpin=33
+output3i2cchannel=4
+output3audioi2cbit=3
 input3announcemediatype=jpg
 input3announcemediafile=/home/pi/tmp/input3.jpg
 input3announcemediaduration=3
@@ -192,7 +225,10 @@ input4name=Quad View
 input4prioritylevel=7
 input4activegpiopin=22
 output4code=nec:0x18
+#output4code=2nec:0x12 (daisy chain, not quad)
 output4hdmiswitchpin=31
+output4i2cchannel=5
+output4audioi2cbit=4
 input4announcemediatype=jpg
 input4announcemediafile=/home/pi/tmp/input4.jpg
 input4announcemediaduration=3
@@ -200,8 +236,10 @@ input4announcemediaduration=3
 input5name=Mast Camera
 input5prioritylevel=7
 input5activegpiopin=16
-output5code=2nec:0x12
+output5code=2nec:0x59
 output5hdmiswitchpin=29
+output5i2cchannel=6
+output5audioi2cbit=5
 input5announcemediatype=jpg
 input5announcemediafile=/home/pi/tmp/input5.jpg
 input5announcemediaduration=10
@@ -209,8 +247,11 @@ input5announcemediaduration=10
 input6name=Unused 6
 input6prioritylevel=9
 input6activegpiopin=19
-output6code=2nec:0x59
+output6code=2nec:0x08
+#output6code=2nec:0x08 (daisy chain)
 output6hdmiswitchpin=23
+output6i2cchannel=7
+output6audioi2cbit=6
 input6announcemediatype=jpg
 input6announcemediafile=/home/pi/tmp/input6.jpg
 input6announcemediaduration=3
@@ -219,7 +260,10 @@ input7name=Unused 7
 input7prioritylevel=9
 input7activegpiopin=21
 output7code=2nec:0x08
+#output7code=2nec:0x12 (daisy chain)
 output7hdmiswitchpin=24
+output7i2cchannel=8
+output7audioi2cbit=7
 input7announcemediatype=jpg
 input7announcemediafile=/home/pi/tmp/input7.jpg
 input7announcemediaduration=3

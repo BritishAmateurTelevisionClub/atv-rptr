@@ -483,7 +483,13 @@ do_show_build_log()
 do_show_log()
 {
   reset
-  more /var/log/rptr/error_log.txt
+  if test -f "/var/log/rptr/error_log.txt"; then
+    echo "===ERROR LOG==="
+    echo
+    more /var/log/rptr/error_log.txt
+  else
+    echo "GOOD NEWS.  The Error Log is empty"
+  fi
   printf "\nPress any key to return to the menu\n"
   read -n 1
 }
@@ -532,6 +538,39 @@ do_diagnostics()
 }
 
 
+do_Audio_Port()
+{
+  AUDIO_PORT=$(get_config_var audioout $CONFIGFILE)
+  Radio1=OFF
+  Radio2=OFF
+  Radio3=OFF
+
+  if [[ "$AUDIO_PORT" == "hdmi" ]];
+  then
+    Radio1=ON
+  fi
+  if [[ "$AUDIO_PORT" == "jack" ]];
+  then
+    Radio2=ON
+  fi
+  if [[ "$AUDIO_PORT" == "usb" ]];
+  then
+    Radio3=ON
+  fi
+
+  AUDIO_PORT=$(whiptail --title "Select Audio Output Port for Ident and K CW" --radiolist \
+    "Highlight choice, select with space bar and then press enter" 20 78 6 \
+    "hdmi" "Audio on HDMI Output" $Radio1 \
+    "jack" "Audio on RPi 3.5mm jack" $Radio2 \
+    "usb" "Audio on USB Audio Dongle" $Radio3 \
+    3>&2 2>&1 1>&3)
+  if [ $? -eq 0 ]; then
+    set_config_var audioout $AUDIO_PORT $CONFIGFILE
+  fi
+
+}
+
+
 do_Check_HDMI()
 {
   reset
@@ -555,15 +594,17 @@ do_Settings()
   status=0
   while [ "$status" -eq 0 ] 
   do
-    menuchoice=$(whiptail --title "Advanced Settings Menu" --menu "Select Choice and press enter" 16 78 8 \
+    menuchoice=$(whiptail --title "Advanced Settings Menu" --menu "Select Choice and press enter" 16 78 9 \
       "1 Restore Factory" "Reset all settings to default" \
       "2 Check HDMI" "List HDMI settings for fault-finding" \
-	  "3 Main Menu" "Go back to the Main Menu" \
+	  "3 Audio Port" "Choose output port for Ident and K CW" \
+	  "4 Main Menu" "Go back to the Main Menu" \
         3>&2 2>&1 1>&3)
       case "$menuchoice" in
         1\ *) do_Restore_Factory ;;
         2\ *) do_Check_HDMI ;;
-	    3\ *) status=1 ;;
+        3\ *) do_Audio_Port ;;
+	    4\ *) status=1 ;;
       esac
   done
   status=0
@@ -1207,7 +1248,7 @@ do_reload()
     ps cax | grep 'multimon-ng' > /dev/null
     if [ $? -ne 0 ]; then
       echo "DTMF Process is not running.  Starting the DTMF Listener"
-      (/home/pi/atv-rptr/scripts/dtmf_listener.sh /dev/null 2>/dev/null) &
+      (/home/pi/atv-rptr/scripts/dtmf_listener.sh >/dev/null 2>/dev/null) &
     fi
   fi
 

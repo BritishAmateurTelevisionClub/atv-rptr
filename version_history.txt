@@ -1,3 +1,10 @@
+202202140
+Beta 2 Build
+Added Audio output destination port and level control
+Added i2c Audio Switching
+Added Hardware Shutdown Button
+Still needs clock, VLC Carousel, i2c video switching and i2c accessory switching
+
 202202082
 Beta Build
 (without Clock, i2c audio switching, VLC carousel or hardware shutdown button)

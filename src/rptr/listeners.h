@@ -2,6 +2,7 @@
 #define __LISTENERS_H__
 
 extern void SetConfigParam(char *PathConfigFile, char *Param, char *Value);
+extern uint64_t monotonic_ms(void);
 
 void *InputStatusListener(void * arg);
 void *SocketListener(void * arg);
@@ -42,6 +43,13 @@ extern int operatingtimestart;
 extern int operatingtimefinish;
 extern int inputAfterIdent;
 extern bool beaconmode;
+extern char dtmftalkbackaudioenablecode[31];              // Stored as a string because it begins with a zero
+extern char dtmftalkbackaudiodisablecode[31];             // Stored as a string because it begins with a zero
+extern bool talkbackaudio;
+extern char StatusForConfigDisplay[100];
+extern int fpsdGPIO;
+extern bool fpsdenabled; 
+
 
 
 #endif /* __LISTENERS_H__ */

@@ -7,10 +7,12 @@
 char callsign[31];                                 // Free text, up to 31 characters
 char locator[31];                                  // Free text, up to 31 characters
 char vidout[31];                                   // hdmi720, hdmi1080, pal, ntsc
+char audioout[31];                                 // for ident: hdmi, jack or usb
 char dtmfgpiooutlabel[10][31];                     // Label for Accessory Output GPIOs
 char dtmfgpiooutoncode[10][31];                    // Stored as a string
 char dtmfgpiooutoffcode[10][31];                   // Stored as a string
 char dtmfgpioinlabel[10][31];                      // Label for Accessory Input GPIOs
+char audioswitch[31];                              // hdmi or i2c
 char inputname[8][31];                             // Input names
 char outputhdmiresetcode[31];                      // HDMI switch reset code issued on start-up
 char outputswitchcontrol[31];                      // gpio or ir (Maybe rs232 later)
@@ -21,12 +23,14 @@ char carouselusbaudio[31];                         // Options are off, both, lef
 char dtmfresetcode[31];                            // Stored as a string because it begins with a zero
 char dtmfstatusviewcode[31];                       // Stored as a string because it begins with a zero
 char dtmfquadviewcode[31];                         // Stored as a string because it begins with a zero
+char dtmftalkbackaudioenablecode[31];              // Stored as a string because it begins with a zero
+char dtmftalkbackaudiodisablecode[31];             // Stored as a string because it begins with a zero
 char dtmfkeepertxoffcode[31];                      // 5-figure string
 char dtmfkeepertxoncode[31];                       // 5-figure string
 char dtmfkeeperrebootcode[31];                     // 5-figure string
 char identmediatype[31];                           // jpg?                      
 char identmediafile[63];                           // full path                      
-char identcwfile[63];                                  // full path                      
+char identcwfile[63];                              // full path                      
 char kmediatype[31];                               // jpg?                      
 char kmediafile[63];                               // full path                      
 char kcwfile[63];                                  // full path                      
@@ -36,7 +40,9 @@ char announcemediatype[8][31];                     // Announce for each input
 char announcemediafile[8][63];                     // Announce for each input
 
 // Derived Config File Parameters
+int audiooutcard;                                  // normally 0 hdmi, 1, jack, 2 usb
 bool audiokeepalive = false;                       // Is low level audio noise running?
+int audiokeepalivelevel = 85;                      // Percentage level for keepalive
 bool transmitenabled = false;                      // Is PTT enabled?
 bool beaconmode = false;                           // Run in Beacon Mode?
 bool transmitwhennotinuse = false;                 // Transmit even with no input?
@@ -50,11 +56,16 @@ int dtmfoutputs = 0;                               // Quantity of DTMF-controlle
 int dtmfoutputGPIO[10];                            // DTMF Output GPIO Broadcom numbers as an int
 int dtmfinputs = 0;                                // Quantity of Accessory GPIO Inputs (not DTMF-controlled)
 int dtmfinputGPIO[10];                             // Accessory input GPIO Broadcom numbers as an int
+int audioi2caddress = 7;                           // 0 to 7
+bool talkbackaudio = true;                         //
+int talkbackaudioi2cbit = 7;                       // 0 to 7
 int availableinputs = 7;                           // How many connected inputs? 1 - 7
 int outputGPIO[8];                                 // HDMI Switch GPIO Broadcom numbers as an int
 int inputactiveGPIO[8];                            // Input active GPIO Broadcom numbers as an int
 int inputprioritylevel[8];                         // 0 highest, 9 disabled
 int pttGPIO;                                       // PTT GPIO Boadcom number
+int fpsdGPIO = 7;                                  // Shutdown button GPIO Boadcom number
+bool fpsdenabled = false;                          //
 int carouselusbaudiogain;                          // 0 to 100
 bool dtmf_enabled = false;                         // 
 int dtmfactiontimeout = 600;                       // seconds.  Default 600.  0 = no timeout
@@ -71,7 +82,9 @@ int carouselmediaduration[100];                    // seconds
 int announcemediaduration[8];                      // seconds for each input
 bool activeinputhold = true;                       // lower priority inputs do not get replaced by higher priority (except pri 1)
 bool showquadformultipleinputs = false;            // Switch to quad view for multiple inputs
+bool cascadedswitches = false;                     // Using 2 switches?
 bool showoutputongpio = false;                     // Toggle gpio lines in addition to IR
+int outputaudioi2cbit[8];                          // range 0 - 7, value 0 to 7
 
 // Current Status parameters
 int inputactive[8] = {1, 0, 0, 0, 0, 0, 0, 0};     // 0 if inactive, 1 if active

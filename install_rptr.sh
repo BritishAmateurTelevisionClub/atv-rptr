@@ -18,7 +18,28 @@ echo $(date -u) "New Build started" | sudo tee -a /var/log/rptr/initial_build_lo
 whoami | grep -q pi
 if [ $? != 0 ]; then
   echo "Install must be performed as user pi"
+  BuildLogMsg "0" "Exiting, not user pi"
+
   exit
+fi
+
+# Check Correct Raspios Version (Buster Legacy)
+lsb_release -a | grep -q buster
+if [ $? != 0 ]; then
+  echo
+  echo "The Repeater Controller requires the Raspios Buster Lite (Legacy) operating system"
+  echo "You may have used bullseye, which is the latest, but not suitable for this software"
+  echo 
+  echo "Press any key to exit
+  read -n 1
+  printf "\n"
+  if [[ "$REPLY" = "d" || "$REPLY" = "D" ]]; then  # Allow to proceed for development
+    echo "Continuing build......"
+    BuildLogMsg "0" "Warning, NOT BUSTER OS"
+  else
+    BuildLogMsg "0" "Exiting, NOT BUSTER OS"
+    exit
+  fi
 fi
 
 # Check which source needs to be loaded
@@ -31,6 +52,7 @@ if [ "$1" == "-d" ]; then
   echo "-------------------------------------------------------------------"
   echo "----- Installing development version of the BATC ATV Repeater -----"
   echo "-------------------------------------------------------------------"
+  BuildLogMsg "0" "Installing Dev Version"
 elif [ "$1" == "-u" -a ! -z "$2" ]; then
   GIT_SRC="$2"
   echo
@@ -45,6 +67,7 @@ else
   echo "-----------------------------------------------------------------------"
   echo "----- Installing BATC Production version of the BATC ATV Repeater -----"
   echo "-----------------------------------------------------------------------"
+  BuildLogMsg "0" "Installing Production Version"
 fi
 
 # Update the package manager
@@ -100,6 +123,8 @@ sudo apt-get -y install sox
 SUCCESS=$?; BuildLogMsg $SUCCESS "sox install"
 sudo apt-get -y install vlc
 SUCCESS=$?; BuildLogMsg $SUCCESS "vlc install"
+sudo apt-get install -y i2c-tools
+SUCCESS=$?; BuildLogMsg $SUCCESS "i2c-tools"
 
 cd /home/pi
 
@@ -109,9 +134,9 @@ SUCCESS=$?; BuildLogMsg $SUCCESS "raspi-config auto-login"
 
 # set the framebuffer to 32 bit depth by disabling dtoverlay=vc4-fkms-v3d
 #echo
-#echo "----------------------------------------------"
-#echo "---- Setting Framebuffer to 32 bit depth -----"
-#echo "----------------------------------------------"
+#echo "------------------------------------"
+#echo "---- Amending /boot/config.txt -----"
+#echo "------------------------------------"
 
 sudo sed -i "/^dtoverlay=vc4-fkms-v3d/c\#dtoverlay=vc4-fkms-v3d" /boot/config.txt
 SUCCESS=$?; BuildLogMsg $SUCCESS "Disabled dtoverlay=vc4-fkms-v3d"
@@ -123,6 +148,11 @@ SUCCESS=$?; BuildLogMsg $SUCCESS "Disabled overscan"
 # Enable the IR Output GPIO
 sudo sed -i "/^#dtoverlay=gpio-ir-tx,gpio_pin=18/c\dtoverlay=gpio-ir-tx,gpio_pin=18" /boot/config.txt
 SUCCESS=$?; BuildLogMsg $SUCCESS "Enabled IR GPIO"
+
+# Enable i2c on physical pins 8 and 10
+sudo sed -i "/^#dtparam=i2c_arm=on/c\dtparam=i2c_arm=on" /boot/config.txt
+sudo sed -i "/^dtparam=i2c_arm=on/a \dtoverlay=i2c-gpio,i2c_gpio_sda=14,i2c_gpio_scl=15" /boot/config.txt
+SUCCESS=$?; BuildLogMsg $SUCCESS "Enabled i2c on pins 8 and 10"
 
 # Reduce the dhcp client timeout to speed off-network startup
 echo
@@ -230,6 +260,9 @@ fi
 
 # Copy the log file rotation configuration
 sudo cp /home/pi/atv-rptr/utils/templates/rptr /etc/logrotate.d/rptr
+
+# Create a destination for Custom Media that is not over-written during updates
+mkdir /home/pi/custom_media
 
 # Record Version Number
 cp /home/pi/atv-rptr/latest_version.txt /home/pi/atv-rptr/config/installed_version.txt

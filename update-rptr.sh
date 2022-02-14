@@ -137,7 +137,8 @@ SUCCESS=$?; UpdateLogMsg $SUCCESS "dist-upgrade"
 
 # --------- Install new packages as Required ---------
 
-# None yet
+sudo apt-get install -y i2c-tools
+SUCCESS=$?; UpdateLogMsg $SUCCESS "i2c-tools"
 
 # ---------- Update atv-rptr -----------
 
@@ -183,6 +184,18 @@ make
 SUCCESS=$?; UpdateLogMsg $SUCCESS "Compile txt2morse"
 cp /home/pi/atv-rptr/src/txt2morse/build/txt2morse /home/pi/atv-rptr/bin/txt2morse
 cd /home/pi
+
+echo
+echo "------------------------------------"
+echo "----- Amending /boot/config.txt ----"
+echo "------------------------------------"
+
+# Enable i2c
+sudo sed -i "/^#dtparam=i2c_arm=on/c\dtparam=i2c_arm=on" /boot/config.txt
+grep -q '^dtoverlay=i2c-gpio,i2c_gpio_sda=14,i2c_gpio_scl=15' /boot/config.txt
+if [ $? != 0 ]; then
+  sudo sed -i "/^dtparam=i2c_arm=on/a \dtoverlay=i2c-gpio,i2c_gpio_sda=14,i2c_gpio_scl=15" /boot/config.txt
+fi
 
 DisplayUpdateMsg "Step 8 of 10\nRestoring Config\n\nXXXXXXXX--"
 

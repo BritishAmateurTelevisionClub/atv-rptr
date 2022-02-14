@@ -271,6 +271,8 @@ void read_config_file()
   // Basic Configuration
   GetConfigParam(PATH_CONFIG,"callsign", callsign);
   GetConfigParam(PATH_CONFIG,"locator", locator);
+
+  // Video output (for sizing config screen)
   GetConfigParam(PATH_CONFIG,"vidout", vidout);
 
   if (strcmp(vidout, "hdmi720") == 0)
@@ -294,12 +296,32 @@ void read_config_file()
     screen_height = 480;
   }
 
+  // Ident Audio Out port (may need better decision making here later)
+  GetConfigParam(PATH_CONFIG,"audioout", audioout);
+  audiooutcard = 0;  // default hdmi
+  if (strcmp(audioout, "jack") == 0)
+  {
+    audiooutcard = 1;
+  }
+  if (strcmp(audioout, "usb") == 0)
+  {
+    audiooutcard = 2;
+  }
+
   // Audio Keep Alive
   strcpy(Value, "no");
   GetConfigParam(PATH_CONFIG, "audiokeepalive", Value);
   if (strcmp(Value, "yes") == 0)
   {
     audiokeepalive = true;
+
+    // Set level
+    GetConfigParam(PATH_CONFIG, "audiokeepalivelevel", Value);
+    audiokeepalivelevel = atoi(Value);
+    if ((audiokeepalivelevel < 0) || (audiokeepalivelevel > 100))
+    {
+      audiokeepalivelevel = 85;
+    }
   }
 
   // Transmit Enabled?
@@ -382,16 +404,19 @@ void read_config_file()
   GetConfigParam(PATH_CONFIG, "pttgpiopin", Value);
   pttGPIO = PinToBroadcom(atoi(Value));
 
-  // Carousel Audio Config
-  GetConfigParam(PATH_CONFIG, "carouselusbaudiomode", carouselusbaudio);
-  strcpy(Value, "");
-  GetConfigParam(PATH_CONFIG, "carouselusbaudiogain", Value);
-  carouselusbaudiogain = atoi(Value);
-  if ((carouselusbaudiogain < 0) || (carouselusbaudiogain > 100))
+  // Front Panel Shutdown Button Enabled?
+  strcpy(Value, "no");
+  GetConfigParam(PATH_CONFIG, "fpshutdown", Value);
+  if (strcmp(Value, "yes") == 0)
   {
-    carouselusbaudiogain = 50;
-    system("echo carouselusbaudiogain_in_config_file_out_of_limits >> /home/pi/atv-rptr/logs/error_log.txt");
+    fpsdenabled = true;
+
+    // FP Shutdown GPIO Pin
+    strcpy(Value, "");
+    GetConfigParam(PATH_CONFIG, "fpsdgpiopin", Value);
+    fpsdGPIO = PinToBroadcom(atoi(Value));
   }
+
 
   // DTMF Config
 
@@ -415,6 +440,12 @@ void read_config_file()
 
   // DTMF Quad View Code (Puts repeater into quad view)
   GetConfigParam(PATH_CONFIG, "dtmfquadview", dtmfquadviewcode);
+
+  // DTMF Talkback Audio enable Code
+  GetConfigParam(PATH_CONFIG, "dtmftalkbackaudioenable", dtmftalkbackaudioenablecode);
+
+  // DTMF Talkback Audio disable Code
+  GetConfigParam(PATH_CONFIG, "dtmftalkbackaudiodisable", dtmftalkbackaudiodisablecode);
 
   // DTMF Keeper TX off Code (Turns repeater off (AND modifies config file)
   GetConfigParam(PATH_CONFIG, "dtmfkeepertxoff", dtmfkeepertxoffcode);
@@ -598,6 +629,37 @@ void read_config_file()
     }
   }
 
+  // Audio Switch Configuration
+  GetConfigParam(PATH_CONFIG, "audioswitch", audioswitch);
+  if (strcmp(audioswitch, "i2c") == 0)
+  {
+    strcpy(Value, "");
+    GetConfigParam(PATH_CONFIG, "audioi2caddress", Value);
+    audioi2caddress = atoi(Value);
+    if ((audioi2caddress < 0) || (audioi2caddress > 7))
+    {
+      audioi2caddress = 7;
+    }
+  }
+
+  // Talkback audio
+  GetConfigParam(PATH_CONFIG, "talkbackaudio", Value);
+  if (strcmp(Value, "off") == 0)
+  {
+    talkbackaudio = false;
+  }
+  else
+  {
+    talkbackaudio = true;
+  }
+  strcpy(Value, "");
+  GetConfigParam(PATH_CONFIG, "talkbackaudioi2cbit", Value);
+  talkbackaudioi2cbit = atoi(Value);
+  if ((talkbackaudioi2cbit < 0) || (talkbackaudioi2cbit > 7))
+  {
+    talkbackaudioi2cbit = 7;
+  }
+
   // HDMI Switch Configuration
 
   // IR or GPIO Switched
@@ -614,16 +676,6 @@ void read_config_file()
     GetConfigParam(PATH_CONFIG, "outputhdmiquadcode", outputhdmiquadcode);
   }
 
-  // Show GPIO in addition to IR?
-  GetConfigParam(PATH_CONFIG, "showoutputongpio", Value);
-  if (strcmp(Value, "yes") == 0)
-  {
-    showoutputongpio = true;
-  }
-  else
-  {
-    showoutputongpio = false;
-  }
 
   // Input and Output Configuration
 
@@ -634,6 +686,17 @@ void read_config_file()
   if ((availableinputs < 1) || (availableinputs > 7))
   {
     availableinputs = 7;
+  }
+
+  // Show GPIO in addition to IR?
+  GetConfigParam(PATH_CONFIG, "showoutputongpio", Value);
+  if (strcmp(Value, "yes") == 0)
+  {
+    showoutputongpio = true;
+  }
+  else
+  {
+    showoutputongpio = false;
   }
 
   // Behavior on input conflict
@@ -648,7 +711,13 @@ void read_config_file()
   if (strcmp(Value, "yes") == 0)
   {
     showquadformultipleinputs = true;
-printf("\n\n%s\n\n\n", Value);
+  }
+
+  // Cascaded HDMI Switches?
+  GetConfigParam(PATH_CONFIG, "cascadedswitches", Value);
+  if (strcmp(Value, "yes") == 0)
+  {
+    cascadedswitches = true;
   }
 
   for(i = 0 ; i <= availableinputs ; i++)
@@ -670,6 +739,16 @@ printf("\n\n%s\n\n\n", Value);
     snprintf(Param, 127, "output%dhdmiswitchpin", i);
     GetConfigParam(PATH_CONFIG, Param, Value);
     outputGPIO[i] = PinToBroadcom(atoi(Value));
+
+    // Audio Switch i2c bit
+    strcpy(Value, "");
+    snprintf(Param, 127, "output%daudioi2cbit", i);
+    GetConfigParam(PATH_CONFIG, Param, Value);
+    outputaudioi2cbit[i] = atoi(Value);
+    if ((outputaudioi2cbit[i] < 0) || (outputaudioi2cbit[i] > 7))
+    {
+      outputaudioi2cbit[i] = 0;
+    }
 
     if (i >= 1)  // All inputs except the controller input
     {
@@ -713,6 +792,17 @@ void setUpGPIO()
   set_mode(localGPIO, pttGPIO, 1);
   gpio_write(localGPIO, pttGPIO, 0);
 
+  // Set shutdown button GPIO as an input
+  if (fpsdenabled == true)
+  {
+    set_mode(localGPIO, fpsdGPIO, 0);
+
+    // read it to check that it is not low.  If it is, disable it now
+    if (gpio_read(localGPIO, fpsdGPIO) != 1)
+    {
+      fpsdenabled = false;
+    }
+  }
 
   // If GPIO-switched HDMI, set the outputs and set to low
   for (i = 0; i <= 7 ; i++)
@@ -968,10 +1058,34 @@ void *Show_Ident(void * arg)
       // Play the audio file if required
       if (identcwaudio == true)
       {
-        snprintf(identlevelcommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", identcwlevel);
-        system (identlevelcommand);
-        snprintf(identplaycommand, 127, "aplay %s >/dev/null 2>/dev/null &", identcwfile);
-        system (identplaycommand);
+        if (audiooutcard == 1)                    // RPi Audio Jack
+        {
+          snprintf(identlevelcommand, 127, "amixer -c 1  -- sset Headphone Playback Volume %d%% >/dev/null 2>/dev/null", identcwlevel);
+          system (identlevelcommand);
+          usleep(200000); 
+          snprintf(identplaycommand, 127, "aplay -D plughw:CARD=Headphones,DEV=0 %s >/dev/null 2>/dev/null &", identcwfile);
+          system (identplaycommand);
+        }
+        else if (audiooutcard == 2)               // USB Audio Dongle
+        {
+          snprintf(identlevelcommand, 127, "amixer -c 2  -- sset Speaker Playback Volume %d%% >/dev/null 2>/dev/null", identcwlevel);
+          system (identlevelcommand);
+          usleep(200000); 
+          snprintf(identplaycommand, 127, "aplay -D plughw:CARD=Device,DEV=0 %s >/dev/null 2>/dev/null &", identcwfile);
+          system (identplaycommand);
+        }
+        else                                     // HDMI and default
+        {
+          snprintf(identlevelcommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", identcwlevel);
+          system (identlevelcommand);
+          usleep(200000); 
+          snprintf(identplaycommand, 127, "aplay -D plughw:CARD=b1,DEV=0 %s >/dev/null 2>/dev/null &", identcwfile);
+          system (identplaycommand);
+
+          // Reduce playback volume for keep-alive noise
+          snprintf(identlevelcommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", audiokeepalivelevel);
+          system (identlevelcommand);
+        }
       }
 
       // Raise PTT if required
@@ -1035,10 +1149,34 @@ void *Show_K_Carousel(void * arg)
     // Play the audio file if required
     if (kcwaudio == true)
     {
-      snprintf(cwlevelcommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", kcwlevel);
-      system (cwlevelcommand);
-      snprintf(cwplaycommand, 127, "aplay %s >/dev/null 2>/dev/null &", kcwfile);
-      system (cwplaycommand);
+      if (audiooutcard == 1)                    // RPi Audio Jack
+      {
+        snprintf(cwlevelcommand, 127, "amixer -c 1  -- sset Headphone Playback Volume %d%% >/dev/null 2>/dev/null", kcwlevel);
+        system (cwlevelcommand);
+        usleep(200000); 
+        snprintf(cwlevelcommand, 127, "aplay -D plughw:CARD=Headphones,DEV=0 %s >/dev/null 2>/dev/null &", kcwfile);
+        system (cwlevelcommand);
+      }
+      else if (audiooutcard == 2)               // USB Audio Dongle
+      {
+        snprintf(cwlevelcommand, 127, "amixer -c 2  -- sset Speaker Playback Volume %d%% >/dev/null 2>/dev/null", kcwlevel);
+        system (cwlevelcommand);
+        usleep(200000); 
+        snprintf(cwlevelcommand, 127, "aplay -D plughw:CARD=Device,DEV=0 %s >/dev/null 2>/dev/null &", kcwfile);
+        system (cwlevelcommand);
+      }
+      else                                     // HDMI and default
+      {
+        snprintf(cwlevelcommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", kcwlevel);
+        system (cwlevelcommand);
+        usleep(200000); 
+        snprintf(cwplaycommand, 127, "aplay -D plughw:CARD=b1,DEV=0 %s >/dev/null 2>/dev/null &", kcwfile);
+        system (cwplaycommand);
+
+        // Reduce playback volume for keep-alive noise
+        snprintf(cwplaycommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", audiokeepalivelevel);
+        system (cwplaycommand);
+      }
     }
   }
 
@@ -1153,6 +1291,34 @@ void *Show_K_Carousel(void * arg)
   return NULL;
 }
 
+void Seti2cAudioSwitch(int bitv[8])
+{
+  int i2cdevnumber = 22;
+  int hexvalue = 0;
+  char hexstring[31];
+  char i2cstring[127];
+
+  hexvalue = (bitv[0]) + (2 * bitv[1]) + (4 * bitv[2]) + (8 * bitv[3]) + (16 * bitv[4]) + (32 * bitv[5]) + (64 * bitv[6]) + (128 * bitv[7]);
+  if (hexvalue <= 15)
+  {
+    snprintf(hexstring, 30, "0x0%x", hexvalue);
+  }
+  else
+  {
+    snprintf(hexstring, 30, "0x%x", hexvalue);
+  }
+
+  // Set i2c Switch to all outputs
+  snprintf(i2cstring, 120, "i2cset -y %d 0x2%d 0x00 0x00", i2cdevnumber, audioi2caddress);
+  // printf("\n%s\n\n", i2cstring);
+  system(i2cstring);
+
+
+  // Set the output levels
+  snprintf(i2cstring, 120, "i2cset -y %d 0x2%d 0x0A %s", i2cdevnumber, audioi2caddress, hexstring);
+  // printf("\n%s\n\n", i2cstring);
+  system(i2cstring);
+}
 
 void Select_HDMI_Switch(int selection)        // selection is between -1 (quad), 0 and availableinputs
 {
@@ -1160,6 +1326,7 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
   int thisGPIOlevel;
   char SystemCommand[127];
   char IRCommandStub[63];
+  int bitv[8];
 
   if ((selection < -1)  || (selection > availableinputs))
   {
@@ -1223,7 +1390,44 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
       system(SystemCommand);
     }
   }
-  // Future audio switching code Here
+
+  // Audio switching code
+  if (strcmp(audioswitch, "i2c") == 0)
+  {
+    bitv[0] = 0;
+    bitv[1] = 0;
+    bitv[2] = 0;
+    bitv[3] = 0;
+    bitv[4] = 0;
+    bitv[5] = 0;
+    bitv[6] = 0;
+    bitv[7] = 0;
+
+    if (talkbackaudio == true)
+    {
+      bitv[talkbackaudioi2cbit] = 1;
+    }
+
+    if ((kcwaudio == true) || (identcwaudio == true))  // Controller audio always on?
+    {
+      bitv[outputaudioi2cbit[0]] = 1;
+    }
+
+    if (selection == -1)                          // Quad View requested
+    {
+      bitv[outputaudioi2cbit[1]] = 1;
+      bitv[outputaudioi2cbit[2]] = 1;
+      bitv[outputaudioi2cbit[3]] = 1;
+      bitv[outputaudioi2cbit[4]] = 1;
+    }
+
+    if ((selection >= 0)  && (selection <= availableinputs))
+    {
+      bitv[outputaudioi2cbit[selection]] = 1;
+    }
+
+    Seti2cAudioSwitch(bitv);
+  }
 }
 
 
@@ -1276,6 +1480,14 @@ int Switchto(int new_output)
   // Release fbi
   pthread_mutex_unlock(&fbi_lock);
 
+  // Final check for an input change
+  for (i = 1; i <= 7; i++)
+  {
+    if (inputActiveInitialState[i] != inputactive[i])
+    {
+      return(1);
+    }
+  }
   return(0);
 }
 

@@ -133,7 +133,7 @@ if [[ "$IDENTCWAUDIO" == "on" ]]; then
   IDENTCWSPEED=$(get_config_var identcwspeed $CONFIGFILE)
   IDENTCWPITCH=$(get_config_var identcwpitch $CONFIGFILE)
   cd /home/pi/tmp
-  echo "$CALLSIGN" > callsign.txt
+  echo " $CALLSIGN" > callsign.txt
   /home/pi/atv-rptr/bin/txt2morse -f "$IDENTCWPITCH" -r "$IDENTCWSPEED" -o identtemp.wav callsign.txt
   sox identtemp.wav -r 32000 ident.wav
 fi
@@ -144,7 +144,7 @@ if [[ "$KCWAUDIO" == "on" ]]; then
   KCWSPEED=$(get_config_var kcwspeed $CONFIGFILE)
   KCWPITCH=$(get_config_var kcwpitch $CONFIGFILE)
   cd /home/pi/tmp
-  echo K > k.txt
+  echo " K" > k.txt
   /home/pi/atv-rptr/bin/txt2morse -f "$KCWPITCH" -r "$KCWSPEED" -o ktemp.wav k.txt
   sox ktemp.wav -r 32000 k.wav
 fi

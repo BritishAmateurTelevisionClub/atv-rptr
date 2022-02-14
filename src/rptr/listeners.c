@@ -36,6 +36,8 @@ void *InputStatusListener(void * arg)
   int lastStableValue[8];
   bool change1Detected = false;
   bool validChangeDetected = false;
+  bool sdbutton1stpress = false;
+  uint64_t first_press_time;
 
   while (run_repeater == true)
   {
@@ -90,6 +92,43 @@ void *InputStatusListener(void * arg)
       }
       printf("\n");
     }
+
+    // Check the front panel shutdown button
+    if (fpsdenabled == true)
+    {
+      if (gpio_read(localGPIO, fpsdGPIO) == 0)
+      {
+        if (sdbutton1stpress == false)     // Put up status screen
+        {
+          inputStatusChange = true;
+          StatusScreenOveride = true;
+          output_overide = false;
+          in_output_overide_mode = false;
+          strcpy(StatusForConfigDisplay, "Shutdown Button pressed");
+          first_press_time = monotonic_ms();
+          sdbutton1stpress = true;
+        }
+      }
+      if (sdbutton1stpress == true)     // Status screen displayed awaiting shutdown
+      {
+        if (first_press_time + 3000 < monotonic_ms())  // 3 seconds elapsed
+        {
+          if (gpio_read(localGPIO, fpsdGPIO) == 0)     // button still low
+          {
+            system("sudo shutdown now");
+          }
+          else                                         // button high so go back to normal
+          {
+            inputStatusChange = true;
+            StatusScreenOveride = false;
+            output_overide = false;
+            in_output_overide_mode = false;
+            sdbutton1stpress = false;
+          }
+        }
+      }
+    }
+
     usleep(100000);  // Check buttons at 10 Hz
   }
   return NULL;
@@ -216,6 +255,20 @@ void UDP_Command(int command_code)
     StatusScreenOveride = false;
     output_overide = true;
     output_overide_source = -1;  // Quad View code
+    return;
+  }
+
+  if (command_code == atoi(dtmftalkbackaudioenablecode))
+  {
+    inputStatusChange = true;
+    talkbackaudio = true;
+    return;
+  }
+
+  if (command_code == atoi(dtmftalkbackaudiodisablecode))
+  {
+    inputStatusChange = true;
+    talkbackaudio = false;
     return;
   }
 
