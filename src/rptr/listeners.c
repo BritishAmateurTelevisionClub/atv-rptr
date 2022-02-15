@@ -374,14 +374,28 @@ int PTTEvent(int EventType)
   }
   else
   {
-    if ((utc24time < operatingtimestart) || (utc24time > operatingtimefinish))  // in quiet hours
+    if (operatingtimestart < operatingtimefinish)  // operating hours does not cross midnight UTC
     {
-      quiet_hours = true;
+      if ((utc24time < operatingtimestart) || (utc24time > operatingtimefinish))  // in quiet hours
+      {
+        quiet_hours = true;
+      }
+      else
+      {
+        quiet_hours = false;
+      }
     }
-    else
+    else                                          // operating hours start before midnight and end after
     {
-      quiet_hours = false;
-    }
+      if ((utc24time < operatingtimestart) && (utc24time > operatingtimefinish))  // in quiet hours
+      {
+        quiet_hours = true;
+      }
+      else
+      {
+        quiet_hours = false;
+      }
+    }  
   }
 
   // Now work out if we are in the second half hour with Power Save

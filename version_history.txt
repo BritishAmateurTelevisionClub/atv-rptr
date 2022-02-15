@@ -1,3 +1,7 @@
+202202150
+Handle Active Hours spanning midnight UTC
+Provide dtmf diagnostics in ssh console menu
+
 202202140
 Beta 2 Build
 Added Audio output destination port and level control

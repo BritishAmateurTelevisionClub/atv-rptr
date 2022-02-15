@@ -512,18 +512,165 @@ do_cmd_line_repeater()
   read -n 1
 }
 
+
+do_dtmf_codes()
+{
+  reset
+  echo "Stopping the Repeater for DTMF Code Display"
+  echo
+
+  pkill run-audio.sh  >/dev/null 2>/dev/null
+  pkill dtmf_listener.sh >/dev/null 2>/dev/null
+  sudo killall arecord >/dev/null 2>/dev/null
+  sudo killall -9 fbi >/dev/null 2>/dev/null
+  sudo killall rptr >/dev/null 2>/dev/null
+
+  sleep 1
+
+  # Check for audio card number
+  CARD="$(arecord -l \
+        | grep -E "USB Audio Device|USB AUDIO|Head|Sound Device" \
+        | head -c 6 | tail -c 1)"
+
+  echo
+  echo "Starting the DTMF Code Display."
+  echo
+  echo "Press ctrl-c to stop the display, restart the repeater"
+  echo "and return to the console menu"
+  echo
+
+  arecord -f S16_LE -r 48000 -c 1 -B 4800 -t raw -D plughw:"$CARD",0 \
+        | sox -c 1 -t raw -r 48000 -b 16 -e signed-integer - --buffer 1024 -t raw -b 16  - rate 22050 \
+        | multimon-ng -a DTMF -
+
+  sudo killall arecord >/dev/null 2>/dev/null
+
+  echo
+  echo "Restarting the Repeater"
+
+  # Put up the Start-up Splash Screen, which will be killed by the repeater process
+  sudo fbi -T 1 -noverbose -a /home/pi/atv-rptr/media/starting_up.jpg >/dev/null 2>/dev/null
+
+  echo
+  echo "Building the Captions....."
+
+  # Source the script to build the default captions
+  source /home/pi/atv-rptr/scripts/build_captions.sh
+
+  AUDIO_KEEP_ALIVE=$(get_config_var audiokeepalive $CONFIGFILE)
+  if [[ "$AUDIO_KEEP_ALIVE" == "yes" ]];
+  then
+    /home/pi/atv-rptr/scripts/run-audio.sh &
+  fi
+
+  # Start the DTMF Listener if required
+  DTMF_CONTROL=$(get_config_var dtmfcontrol $CONFIGFILE)
+  if [[ "$DTMF_CONTROL" == "on" ]];
+  then
+    ps cax | grep 'multimon-ng' > /dev/null
+    if [ $? -ne 0 ]; then
+      echo "DTMF Process is not running.  Starting the DTMF Listener"
+      (/home/pi/atv-rptr/scripts/dtmf_listener.sh >/dev/null 2>/dev/null) &
+    fi
+  fi
+
+  echo
+  echo "Restarting the repeater controller"
+
+  (/home/pi/atv-rptr/bin/rptr >/dev/null 2>/dev/null) &
+}
+
+
+do_dtmf_replay()
+{
+  reset
+  echo "Stopping the Repeater for DTMF Pass-through"
+
+  pkill run-audio.sh  >/dev/null 2>/dev/null
+  pkill dtmf_listener.sh >/dev/null 2>/dev/null
+  sudo killall arecord >/dev/null 2>/dev/null
+  sudo killall -9 fbi >/dev/null 2>/dev/null
+  sudo killall rptr >/dev/null 2>/dev/null
+
+  sleep 1
+
+  # Check for audio card number
+  CARD="$(arecord -l \
+        | grep -E "USB Audio Device|USB AUDIO|Head|Sound Device" \
+        | head -c 6 | tail -c 1)"
+
+
+  echo
+  echo "Setting the HDMI Audio Gain to Max"
+  echo
+  amixer -c 0  -- sset HDMI Playback Volume 100% >/dev/null 2>/dev/null
+ 
+  echo
+  echo "Starting the audio pass-through."
+  echo
+  echo  "You should now hear undistorted DTMF Audio on the HDMI output"
+  echo
+  echo "Press any key to stop the pass-through, restart the repeater"
+  echo "and return to the console menu"
+  echo
+
+  (arecord -f S16_LE -r 48000 -c 1 -B 4800 -t raw -D plughw:"$CARD",0 2>/dev/null \
+  | aplay  -f S16_LE -r 48000 -c 1 -D plughw:CARD=b1,DEV=0 >/dev/null 2>/dev/null) &
+
+  read -n 1
+
+  sudo killall arecord >/dev/null 2>/dev/null
+
+  echo
+  echo "Restarting the Repeater"
+
+  # Put up the Start-up Splash Screen, which will be killed by the repeater process
+  sudo fbi -T 1 -noverbose -a /home/pi/atv-rptr/media/starting_up.jpg >/dev/null 2>/dev/null
+
+  echo
+  echo "Building the Captions....."
+
+  # Source the script to build the default captions
+  source /home/pi/atv-rptr/scripts/build_captions.sh
+
+  AUDIO_KEEP_ALIVE=$(get_config_var audiokeepalive $CONFIGFILE)
+  if [[ "$AUDIO_KEEP_ALIVE" == "yes" ]];
+  then
+    /home/pi/atv-rptr/scripts/run-audio.sh &
+  fi
+
+  # Start the DTMF Listener if required
+  DTMF_CONTROL=$(get_config_var dtmfcontrol $CONFIGFILE)
+  if [[ "$DTMF_CONTROL" == "on" ]];
+  then
+    ps cax | grep 'multimon-ng' > /dev/null
+    if [ $? -ne 0 ]; then
+      echo "DTMF Process is not running.  Starting the DTMF Listener"
+      (/home/pi/atv-rptr/scripts/dtmf_listener.sh >/dev/null 2>/dev/null) &
+    fi
+  fi
+
+  echo
+  echo "Restarting the repeater controller"
+
+  (/home/pi/atv-rptr/bin/rptr >/dev/null 2>/dev/null) &
+}
+
+
 do_diagnostics()
 {
   status=0
   while [ "$status" -eq 0 ] 
   do
-    menuchoice=$(whiptail --title "Repeater Diagnostics Menu" --menu "Select Choice" 20 78 7 \
+    menuchoice=$(whiptail --title "Repeater Diagnostics Menu" --menu "Select Choice" 20 78 8 \
     "1 Config" "Show Repeater Configuration File" \
     "2 Log File" "Show Repeater Error Log File" \
     "3 Build Log" "Show Initial Build Log File" \
     "4 Update Log" "Show Latest Update Log File" \
     "5 Rptr Test" "Run Repeater with the ability to read errors" \
-	"6 Main Menu" "Go back to the Main Menu" \
+    "6 DTMF Replay" "Listen to the DTMF Input on the HDMI Audio" \
+    "7 DTMF Codes" "Display the decoded DTMF Codes" \
+	"8 Main Menu" "Go back to the Main Menu" \
       3>&2 2>&1 1>&3)
     case "$menuchoice" in
       1\ *) do_info ;;
@@ -531,7 +678,9 @@ do_diagnostics()
       3\ *) do_show_build_log ;;
       4\ *) do_show_update_log ;;
       5\ *) do_cmd_line_repeater ;;
-	  6\ *) status=1 ;;
+      6\ *) do_dtmf_replay ;;
+      7\ *) do_dtmf_codes ;;
+	  8\ *) status=1 ;;
     esac
   done
   status=0
@@ -1362,7 +1511,7 @@ while [ "$status" -eq 0 ]
     "4 Control" "Direct Control of Input Selection" \
     "5 Update" "Check Software Version and Update" \
     "6 Settings" "Advanced Settings Menu" \
-    "7 Diagnostics" "View Config and Logs" \
+    "7 Diagnostics" "View Config or Logs, or Debug dtmf" \
     "8 Reboot" "Reboot, exit to the Linux command prompt or ShutDown" \
  	3>&2 2>&1 1>&3)
 
