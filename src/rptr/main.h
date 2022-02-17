@@ -101,6 +101,7 @@ bool output_overide = false;                       // Set by console menu or dtm
 int output_overide_source = 0;                     // Set by console menu or dtmf to show a specific input source
 bool in_output_overide_mode = false;
 bool run_repeater = true;                          // Used to neatly exit threads
+bool outputwasmultiinputquad = false;              // Used to prevent Announce when quad has been displayed
 
 // Display parameters
 int screen_width;                                  // These are defined in the config file

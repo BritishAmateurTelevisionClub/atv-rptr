@@ -1440,7 +1440,8 @@ int Switchto(int new_output)
   // fbi cue image
   printf("Entered Switchto for output %d\n", new_output);
 
-  if ((new_output >= 1) && (new_output <= 7) && (announcemediaduration[new_output] > 0))    // fbi announcemedia image
+  if ((new_output >= 1) && (new_output <= 7) && (announcemediaduration[new_output] > 0) 
+   && (outputwasmultiinputquad == false))    // Announce Media required
   {
     // Wait for fbi to be available
     pthread_mutex_lock(&fbi_lock);
@@ -1468,6 +1469,15 @@ int Switchto(int new_output)
         }
       }
     }
+  }
+
+  if ((new_output == -1) && (showquadformultipleinputs == true))  // Set flag so that announce is not displayed on dropping out of quad
+  {
+    outputwasmultiinputquad = true;
+  }
+  else
+  {
+    outputwasmultiinputquad = false;
   }
 
   Select_HDMI_Switch(new_output);  // switch to new_output if no change in input switch lines

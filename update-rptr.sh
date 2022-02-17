@@ -139,6 +139,8 @@ SUCCESS=$?; UpdateLogMsg $SUCCESS "dist-upgrade"
 
 sudo apt-get install -y i2c-tools
 SUCCESS=$?; UpdateLogMsg $SUCCESS "i2c-tools"
+sudo apt-get install -y dos2unix
+SUCCESS=$?; UpdateLogMsg $SUCCESS "dos2unix"
 
 # ---------- Update atv-rptr -----------
 

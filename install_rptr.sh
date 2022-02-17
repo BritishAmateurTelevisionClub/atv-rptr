@@ -125,6 +125,8 @@ sudo apt-get -y install vlc
 SUCCESS=$?; BuildLogMsg $SUCCESS "vlc install"
 sudo apt-get install -y i2c-tools
 SUCCESS=$?; BuildLogMsg $SUCCESS "i2c-tools"
+sudo apt-get install -y dos2unix
+SUCCESS=$?; BuildLogMsg $SUCCESS "dos2unix"
 
 cd /home/pi
 

@@ -29,6 +29,12 @@ sudo killall arecord >/dev/null 2>/dev/null
 sudo killall -9 fbi >/dev/null 2>/dev/null
 sudo killall rptr >/dev/null 2>/dev/null
 
+# Check that the config file is in unix format, convert if not
+dos2unix < "$CONFIGFILE" | cmp - "$CONFIGFILE" >/dev/null 2>/dev/null
+if [ $? != 0 ]; then
+  dos2unix "$CONFIGFILE" >/dev/null 2>/dev/null
+fi
+
 cd /home/pi/atv-rptr/src/rptr
 touch main.c
 

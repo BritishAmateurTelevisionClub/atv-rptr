@@ -31,13 +31,10 @@ EOF
 
 ######################### Start here #####################
 
-# If pi-sdn is not running, check if it is required to run
-ps -cax | grep 'pi-sdn' >/dev/null 2>/dev/null
-RESULT="$?"
-if [ "$RESULT" -ne 0 ]; then
-  if [ -f /home/pi/.pi-sdn ]; then
-    . /home/pi/.pi-sdn
-  fi
+# Check that the config file is in unix format, convert if not
+dos2unix < "$CONFIGFILE" | cmp - "$CONFIGFILE" >/dev/null 2>/dev/null
+if [ $? != 0 ]; then
+  dos2unix "$CONFIGFILE" >/dev/null 2>/dev/null
 fi
 
 # Put up the Start-up Splash Screen, which will be killed by the repeater process

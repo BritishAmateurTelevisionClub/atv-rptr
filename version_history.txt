@@ -1,3 +1,7 @@
+220205170
+Convert config files to Unix format (from dos) if required
+Suppress anounce message on transition from multi-input quad to single input
+
 202202150
 Handle Active Hours spanning midnight UTC
 Provide dtmf diagnostics in ssh console menu

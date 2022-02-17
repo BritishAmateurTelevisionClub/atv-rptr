@@ -1,7 +1,8 @@
-![portsdown banner](/media/block.jpg)
 # The BATC ATV Repeater Controller
 
-**The BATC ATV Repeater Controller** is a digital amateur television repeater controller for the Raspberry Pi 4.  
+**The BATC ATV Repeater Controller** is a digital amateur television repeater controller for the Raspberry Pi 4.  Full details can be found on the BATC Wiki: https://wiki.batc.org.uk/Repeater_Controller 
+
+![Repeater Block Digram](/media/block.jpg)
 
 This version is based on Raspberry Pi OS Lite (Legacy) and is only compatible with the Raspberry Pi 4.  
 
@@ -15,9 +16,11 @@ https://downloads.raspberrypi.org/raspios_oldstable_lite_armhf/images/raspios_ol
 
 - Before you remove the card from your Windows PC, look at the card with windows explorer; the volume should be labeled "boot".  Create a new empty file called ssh in the top-level (root) directory by right-clicking, selecting New, Text Document, and then change the name to ssh (not ssh.txt).  You should get a window warning about changing the filename extension.  Click OK.  If you do not get this warning, you have created a file called ssh.txt and you need to rename it ssh.  IMPORTANT NOTE: by default, Windows (all versions) hides the .txt extension on the ssh file.  To change this, in Windows Explorer, select File, Options, click the View tab, and then untick "Hide extensions for known file types". Then click OK.
 
-- Find the IP address of your Raspberry Pi using an IP Scanner (such as Advanced IP Scanner http://filehippo.com/download_advanced_ip_scanner/ for Windows, or Fing on an iPhone) to get the RPi's IP address 
+- Connect an HDMI display to the Raspberry Pi (no keyboard or mouse), insert the card and power on.  The Rpi will reboot once and then be ready for the installation.
 
-- From your windows PC use Putty (http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html) to log in to the IP address that you noted earlier.  You will get a Security warning the first time you try; this is normal.
+- Find the IP address of your Raspberry Pi using an IP Scanner (such as Advanced IP Scanner http://filehippo.com/download_advanced_ip_scanner/ for Windows, or Fing on an iPhone) to get the RPi's IP address.  You may be able to read the IP address from the HDMI screen. 
+
+- From your windows PC use KiTTY (https://www.fosshub.com/KiTTY.html) to log in to the IP address that you noted earlier.  You will get a Security warning the first time you try; this is normal.
 
 - Log in (user: pi, password: raspberry) then cut and paste the following code in, one line at a time:
 
@@ -28,7 +31,7 @@ chmod +x install_rptr.sh
 ./install_rptr.sh
 ```
 
-The initial build can take up to 30 minutes, however it does not need any user input, so go and make a cup of coffee and keep an eye on the touchscreen.  When the build is finished the Pi will reboot.
+The initial build can take up to 15 minutes, however it does not need any user input, so go and make a cup of coffee and keep an eye on the screen.  When the build is finished the Pi will reboot.
 
 - If your ISP is Virgin Media and you receive an error after entering the wget line: 'GnuTLS: A TLS fatal alert has been received.', it may be that your ISP is blocking access to GitHub.  If (only if) you get this error with Virgin Media, paste the following command in, and press return.
 ```sh
@@ -38,7 +41,7 @@ Then reboot, and try again.  The command asks your RPi to use Google's DNS, not 
 
 - If your ISP is BT, you will need to make sure that "BT Web Protect" is disabled so that you are able to download the software.
 
-- When it has finished, the installation will reboot and the touchscreen should be activated.  You will need to log in to the console to set up any other displays or advanced options.
+- After the reboot, initial configuration is best done by direct editing of the /home/pi/atv-rptr/config/repeater_config.txt file.  Refer to the BATC Wiki for guidance.  Note that the repeater must be restarted to read configuration file changes.
 
 
 # Advanced notes
