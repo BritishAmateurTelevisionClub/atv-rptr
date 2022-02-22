@@ -1,4 +1,8 @@
-220205170
+202202220
+Add Status screen to carousel options
+Correct handing of cascaded HDMI switches
+
+202202170
 Convert config files to Unix format (from dos) if required
 Suppress anounce message on transition from multi-input quad to single input
 

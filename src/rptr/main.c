@@ -829,6 +829,10 @@ void setUpGPIO()
       set_mode(localGPIO, dtmfinputGPIO[i], 0);
     }
   }
+
+  // Set Daisy Chain IR Output GPIO as an output and initialise low
+  set_mode(localGPIO, daisychainirselectgpio, 1);
+  gpio_write(localGPIO, daisychainirselectgpio, 0);
   
 
   // Example pigpio code:
@@ -1133,6 +1137,7 @@ void *Show_K_Carousel(void * arg)
   char cwplaycommand[127];
 
   printf("Entering the KCarousel thread\n");
+  strcpy(StatusForConfigDisplay, "Displaying the K");
 
   // Display the K initially
   if ((ident_active == false) && (StatusScreenOveride == false))
@@ -1227,6 +1232,7 @@ void *Show_K_Carousel(void * arg)
 
           // Release fbi
           pthread_mutex_unlock(&fbi_lock);
+          printf("Carousel Scene %d displayed\n", i);
         }
 
         if (strcmp(carouselmediatype[i], "source") == 0)       // Scene is a source
@@ -1238,8 +1244,19 @@ void *Show_K_Carousel(void * arg)
           }
           Select_HDMI_Switch(carouselSource);
           inputAfterIdent = carouselSource;
+          printf("Carousel Scene %d Source %d displayed\n", i, carouselSource);
         }
-        printf("Carousel Scene %d displayed\n", i);
+
+        if (strcmp(carouselmediatype[i], "status") == 0)       // Scene is the Status page
+        {
+          carouselSource = 0;
+          // Status page
+          update_status_screen();
+
+          Select_HDMI_Switch(0);
+          inputAfterIdent = 0;
+          printf("Status Page displayed in carousel\n");
+        }
       }
 
       // Now wait kmediaduration seconds
@@ -1261,7 +1278,6 @@ void *Show_K_Carousel(void * arg)
           usleep(10000);
         }
       }
-      strcpy(StatusForConfigDisplay, "Exiting the Carousel");
 
       if (strcmp(carouselmediatype[i], "source") == 0)       // Scene was a source so reset switch
       {
@@ -1288,6 +1304,7 @@ void *Show_K_Carousel(void * arg)
       pastendoffirstcarousel = true;
     }
   }
+  strcpy(StatusForConfigDisplay, "Exiting the Carousel");
   return NULL;
 }
 
@@ -1361,33 +1378,59 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
   {
     if ((selection >= 0)  && (selection <= availableinputs))
     {
-      // Check for daisy-chained switches
-      if (outputcode[selection][0] == '2')
+      if (outputcode[selection][0] == '2')      // Daisy-chained switches
       {
-        //printf("daisy chain \n");
-        snprintf(IRCommandStub, 30, "%s", outputcode[selection] + 1);
+        // select the appropriate input on the upstream (first, quad) switch
+        // so switch to the upstream IR sender
+        gpio_write(localGPIO, daisychainirselectgpio, 1);
+        usleep(100000);     // Let switch settle
+
+        snprintf(IRCommandStub, 30, "%s", outputcode[selection] + 1);     // start at the 2nd character
         //printf("IRCommandStub = -%s-\n", IRCommandStub);
-        strcpy(IRCommandStub, outputcode[1]);  // For TESTING
         snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", IRCommandStub);
         system(SystemCommand);
 
-        usleep(200000);     // Let switch settle
+        // now switch to the downstream (second, not quad) switch
+        gpio_write(localGPIO, daisychainirselectgpio, 0);
+        usleep(100000);     // Let switch settle
 
-        // Select daisy chain input on primary switch
+        // Select daisy chain input on downstream switch
         snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", output2ndhdmicode);
         system(SystemCommand);
       }
-      else
+      else                                  // Not daisy-chained switches
       {
-        //printf("Simple IR Command\n");
         snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputcode[selection]);
         system(SystemCommand);
       }
     }
     else if (selection == -1)                          // Quad View requested
     {
-      snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputhdmiquadcode);
-      system(SystemCommand);
+      if (outputhdmiquadcode[0] == '2')     // Daisy-chained switches for quad
+      {
+        // select the quad on the upstream (first, quad) switch
+        // so switch to the upstream IR sender
+        gpio_write(localGPIO, daisychainirselectgpio, 1);
+        usleep(100000);     // Let switch settle
+
+        snprintf(IRCommandStub, 30, "%s", outputhdmiquadcode + 1);   // start at the 2nd character
+        //printf("IRCommandStub = -%s-\n", IRCommandStub);
+        snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", IRCommandStub);
+        system(SystemCommand);
+
+        // now switch to the downstream (second, not quad) switch
+        gpio_write(localGPIO, daisychainirselectgpio, 0);
+        usleep(100000);     // Let switch settle
+
+        // Select daisy chain input on downstream switch
+        snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", output2ndhdmicode);
+        system(SystemCommand);
+      }
+      else                                // Not daisy-chained switches
+      {
+        snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputhdmiquadcode);
+        system(SystemCommand);
+      }
     }
   }
 
