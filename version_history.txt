@@ -1,3 +1,6 @@
+202202230
+Limit quad view trigger to first 4 sources
+
 202202220
 Add Status screen to carousel options
 Correct handing of cascaded HDMI switches

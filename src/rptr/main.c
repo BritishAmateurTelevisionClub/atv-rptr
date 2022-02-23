@@ -1386,7 +1386,7 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
         usleep(100000);     // Let switch settle
 
         snprintf(IRCommandStub, 30, "%s", outputcode[selection] + 1);     // start at the 2nd character
-        //printf("IRCommandStub = -%s-\n", IRCommandStub);
+        printf("IRCommandStub = -%s-\n", IRCommandStub);
         snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", IRCommandStub);
         system(SystemCommand);
 
@@ -1414,7 +1414,7 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
         usleep(100000);     // Let switch settle
 
         snprintf(IRCommandStub, 30, "%s", outputhdmiquadcode + 1);   // start at the 2nd character
-        //printf("IRCommandStub = -%s-\n", IRCommandStub);
+        printf("IRCommandStub = -%s-\n", IRCommandStub);
         snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", IRCommandStub);
         system(SystemCommand);
 
@@ -1560,6 +1560,7 @@ int priorityDecision()
   int decision_result = -2;  // -2 is no active inputs, -1 is quad, 0 is controller, 1 is first rptr input etc
   static int previous_decision_result;
   int active_input_count = 0;
+  int quadtestinputs = 4;
 
   printf("previous decision result is %d, entering decision process\n", previous_decision_result);
 
@@ -1575,8 +1576,12 @@ int priorityDecision()
   // Check if quad is required for multiple active inputs
   if (showquadformultipleinputs == true)
   {
-    printf("showquadformultipleinputs == true\n");
-    for (i = 1; i <= availableinputs; i++)
+    if (availableinputs < quadtestinputs)  // so less than 4 inputs into the quad
+    {
+      quadtestinputs  = availableinputs;
+    }
+
+    for (i = 1; i <= quadtestinputs; i++)  
     {
       if ((inputprioritylevel[i] <= 8) && (inputactive[i] == 1))
       {
