@@ -1,3 +1,8 @@
+202202260
+Add html control of video switch as an option
+Correct bug in dtmf dispaly overide selection
+Add option to retain old config file on upgrade
+
 202202230
 Limit quad view trigger to first 4 sources
 

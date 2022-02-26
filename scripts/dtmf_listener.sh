@@ -26,6 +26,14 @@ EOF
 
 #########################################################################
 
+# Check audio input device connected
+
+arecord -l | grep -E "USB Audio Device|USB AUDIO|Head|Sound Device" >/dev/null 2>/dev/null
+if [ $? != 0 ]; then
+  echo "No compatible DTMF input device detected"
+  exit
+fi
+
 # Check for audio card number
 CARD="$(arecord -l \
       | grep -E "USB Audio Device|USB AUDIO|Head|Sound Device" \

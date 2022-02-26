@@ -66,6 +66,18 @@ reset
 
 printf "\nCommencing update.\n\n"
 
+printf "You can keep your old configuration file, or overwrite it with\n"
+printf "the latest one with the factory settings\n\n"
+printf "Do you want to keep your old configuration file? (y/n)\n"
+read -n 1
+printf "\n"
+if [[ "$REPLY" = "y" || "$REPLY" = "Y" ]]; then  ## Keep Old file requested
+  KEEPCONFIG="true"
+else
+  KEEPCONFIG="false"
+printf "\nYour old file will be saved as pre_update_repeater_config.txt\n\n"
+fi
+
 # Rotate the update log
 sudo mv /var/log/rptr/update_log.txt /var/log/rptr/previous_update_log.txt >/dev/null 2>/dev/null
 
@@ -110,8 +122,12 @@ rm -rf "$PATHUBACKUP"
 # Create a folder for user configs
 mkdir "$PATHUBACKUP" >/dev/null 2>/dev/null
 
-# Make a safe copy of repeater_config.txt
-cp -f -r "$PATHCONFIG"/repeater_config.txt "$PATHUBACKUP"/repeater_config.txt
+if [[ "$KEEPCONFIG" == "true" ]]; then
+  # Make a safe copy of repeater_config.txt
+  cp -f -r "$PATHCONFIG"/repeater_config.txt "$PATHUBACKUP"/repeater_config.txt
+else
+  cp -f -r "$PATHCONFIG"/repeater_config.txt "$PATHCONFIG"/pre_update_repeater_config.txt
+fi
 
 # Note previous version number
 cp -f -r /home/pi/atv-rptr/config/installed_version.txt "$PATHUBACKUP"/prev_installed_version.txt
@@ -205,8 +221,10 @@ fi
 
 DisplayUpdateMsg "Step 8 of 10\nRestoring Config\n\nXXXXXXXX--"
 
-# Restore repeater_config.txt
-cp -f -r "$PATHUBACKUP"/repeater_config.txt "$PATHCONFIG"/repeater_config.txt
+if [[ "$KEEPCONFIG" == "true" ]]; then
+  # Restore repeater_config.txt
+  cp -f -r "$PATHUBACKUP"/repeater_config.txt "$PATHCONFIG"/repeater_config.txt
+fi
 
 # Restore version info
 #cp -f -r "$PATHUBACKUP"/prev_installed_version.txt "$PATHCONFIG"/prev_installed_version.txt

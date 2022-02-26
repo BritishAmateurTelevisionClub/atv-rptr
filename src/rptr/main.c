@@ -676,7 +676,6 @@ void read_config_file()
     GetConfigParam(PATH_CONFIG, "outputhdmiquadcode", outputhdmiquadcode);
   }
 
-
   // Input and Output Configuration
 
   // Number of inputs
@@ -688,7 +687,26 @@ void read_config_file()
     availableinputs = 7;
   }
 
-  // Show GPIO in addition to IR?
+  // html switched
+  if (strcmp(outputswitchcontrol, "html") == 0)
+  {
+    // Base url and port for server (without trailing slash)
+    GetConfigParam(PATH_CONFIG, "networkctrlurl", networkctrlurl);
+
+    // quad output command
+    GetConfigParam(PATH_CONFIG, "outputquadnetcommand", outputquadnetcommand);
+
+    for(i = 0 ; i <= availableinputs ; i++)
+    {
+      // html output switch commands
+      strcpy(Value, "");
+      snprintf(Param, 127, "output%dnetcommand", i);
+      GetConfigParam(PATH_CONFIG, Param, Value);
+      strcpy(outputnetcommand[i], Value);
+    }
+  }
+
+  // Show GPIO in addition to IR or html?
   GetConfigParam(PATH_CONFIG, "showoutputongpio", Value);
   if (strcmp(Value, "yes") == 0)
   {
@@ -994,7 +1012,7 @@ void fbiThenKill(char *PathImageFile)
 
   snprintf(SystemCommand, 127, "sudo fbi -T 1 -noverbose -a %s >/dev/null 2>/dev/null", PathImageFile);
   system(SystemCommand);
-  usleep(200000);
+  usleep(400000);  // Increased from 0.2 s to improve reliability
 
   strcpy(SystemCommand, "sudo killall -9 fbi >/dev/null 2>/dev/null");
   system(SystemCommand);
@@ -1125,6 +1143,7 @@ void *Show_Ident(void * arg)
   return NULL;
 }
 
+
 void *Show_K_Carousel(void * arg)
 {
   uint64_t media_start;
@@ -1215,7 +1234,7 @@ void *Show_K_Carousel(void * arg)
   pastendoffirstcarousel = false;
   strcpy(StatusForConfigDisplay, "Displaying the Carousel");
 
-  while (run_carousel == true)
+  while ((run_carousel == true) && (output_overide == false))
   {
     for (i = 1; i <= carouselscenes; i++)
     {
@@ -1242,18 +1261,21 @@ void *Show_K_Carousel(void * arg)
           {
             carouselSource = 0;
           }
-          Select_HDMI_Switch(carouselSource);
-          inputAfterIdent = carouselSource;
-          printf("Carousel Scene %d Source %d displayed\n", i, carouselSource);
+          if (output_overide == false)
+          {
+            Select_HDMI_Switch(carouselSource);
+            inputAfterIdent = carouselSource;
+            printf("Carousel Scene %d Source %d displayed\n", i, carouselSource);
+          }
         }
 
-        if (strcmp(carouselmediatype[i], "status") == 0)       // Scene is the Status page
+        if ((strcmp(carouselmediatype[i], "status") == 0) && (output_overide == false))      // Scene is the Status page
         {
           carouselSource = 0;
           // Status page
           update_status_screen();
 
-          Select_HDMI_Switch(0);
+          // Select_HDMI_Switch(0);
           inputAfterIdent = 0;
           printf("Status Page displayed in carousel\n");
         }
@@ -1279,7 +1301,7 @@ void *Show_K_Carousel(void * arg)
         }
       }
 
-      if (strcmp(carouselmediatype[i], "source") == 0)       // Scene was a source so reset switch
+      if ((strcmp(carouselmediatype[i], "source") == 0) && (output_overide == false))      // Scene was a source so reset switch
       {
         if (i == carouselscenes)  // last scene in carousel
         {
@@ -1341,7 +1363,7 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
 {
   int i;
   int thisGPIOlevel;
-  char SystemCommand[127];
+  char SystemCommand[255];
   char IRCommandStub[63];
   int bitv[8];
 
@@ -1433,6 +1455,23 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
       }
     }
   }
+
+  if (strcmp(outputswitchcontrol, "html") == 0)                 // Network controlled HDMI switch
+  {
+    if ((selection >= 0)  && (selection <= availableinputs))    // Normal input
+    {
+      snprintf(SystemCommand, 254, "curl %s%s &", networkctrlurl, outputnetcommand[selection]);
+      printf("\n-%s-\n\n", SystemCommand);
+      system(SystemCommand);
+    }
+    else                                                         // Quad View requested
+    {
+      snprintf(SystemCommand, 254, "curl %s%s &", networkctrlurl, outputquadnetcommand);
+      printf("\n-%s-\n\n", SystemCommand);
+      system(SystemCommand);
+    }
+  }
+
 
   // Audio switching code
   if (strcmp(audioswitch, "i2c") == 0)

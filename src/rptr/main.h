@@ -18,6 +18,9 @@ char outputhdmiresetcode[31];                      // HDMI switch reset code iss
 char outputswitchcontrol[31];                      // gpio or ir (Maybe rs232 later)
 char output2ndhdmicode[31];                        // The code for the daisy chain input on the primary hdmi switch
 char outputhdmiquadcode[31];                       // The code for Quad View on the primary hdmi switch
+char networkctrlurl[63];                           // url for Bitfocus Companion Server or similar
+char outputquadnetcommand[63];                     // command to be added to url above
+char outputnetcommand[8][63];                      // command to be added to base url
 char outputcode[8][31];                            // RS232 or ir code for each HDMI switch selection
 char carouselusbaudio[31];                         // Options are off, both, left right (mono from USB dongle)
 char dtmfresetcode[31];                            // Stored as a string because it begins with a zero
