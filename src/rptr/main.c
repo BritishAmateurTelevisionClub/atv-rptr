@@ -68,6 +68,8 @@ void log_rptr_error(char *errorstring);
 void update_status_screen();
 void Select_HDMI_Switch(int);
 int Switchto(int);
+void Seti2cAudioSwitch(int bitv[8]);
+
 
 void read_config_file();
 
@@ -1028,6 +1030,9 @@ void *Show_Ident(void * arg)
   uint64_t quiet_hours_check;
   char identlevelcommand[127];
   char identplaycommand[127];
+  int newi2caudiostatus[8];
+  bool i2caudioswitchforident = false;
+  int i;
 
   last_ident = monotonic_ms();
   ident_required = last_ident  + identinterval * 1000;
@@ -1065,17 +1070,21 @@ void *Show_Ident(void * arg)
       last_ident = ident_required;
       ident_required = last_ident + identinterval * 1000;
 
-      // kill vlc?
+      // Check that ident video is to be displayed
+      if ((strcmp(identmediafile, "none") != 0) && (strcmp(identmediatype, "none") != 0))
+      {
+        // kill vlc?
 
-      // Wait for fbi to be available
-      pthread_mutex_lock(&fbi_lock);
+        // Wait for fbi to be available
+        pthread_mutex_lock(&fbi_lock);
 
-      fbiThenKill(identmediafile);
+        fbiThenKill(identmediafile);
 
-      // Release fbi
-      pthread_mutex_unlock(&fbi_lock);
+        // Release fbi
+        pthread_mutex_unlock(&fbi_lock);
 
-      Select_HDMI_Switch(0);
+        Select_HDMI_Switch(0);
+      }
 
       // Play the audio file if required
       if (identcwaudio == true)
@@ -1108,6 +1117,16 @@ void *Show_Ident(void * arg)
           snprintf(identlevelcommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", audiokeepalivelevel);
           system (identlevelcommand);
         }
+        if ((currenti2caudiostatus[0] == 0) && (strcmp(audioswitch, "i2c") == 0))  // i2c audio req for ident
+        {
+          i2caudioswitchforident = true;
+          newi2caudiostatus[0] = 1;
+          for (i = 1; i <= 7; i++)
+          {
+            newi2caudiostatus[i] = currenti2caudiostatus[i];
+          }
+          Seti2cAudioSwitch(newi2caudiostatus);
+        }
       }
 
       // Raise PTT if required
@@ -1136,6 +1155,13 @@ void *Show_Ident(void * arg)
 
         // switch to the current screen
         Select_HDMI_Switch(inputAfterIdent);        
+      }
+
+      // Turn off i2c audio for ident if required
+      if (i2caudioswitchforident == true)
+      {
+        newi2caudiostatus[0] = 0;
+        Seti2cAudioSwitch(newi2caudiostatus);
       }
     }
     usleep(100000);
@@ -1336,6 +1362,7 @@ void Seti2cAudioSwitch(int bitv[8])
   int hexvalue = 0;
   char hexstring[31];
   char i2cstring[127];
+  int i;
 
   hexvalue = (bitv[0]) + (2 * bitv[1]) + (4 * bitv[2]) + (8 * bitv[3]) + (16 * bitv[4]) + (32 * bitv[5]) + (64 * bitv[6]) + (128 * bitv[7]);
   if (hexvalue <= 15)
@@ -1352,11 +1379,16 @@ void Seti2cAudioSwitch(int bitv[8])
   // printf("\n%s\n\n", i2cstring);
   system(i2cstring);
 
-
   // Set the output levels
   snprintf(i2cstring, 120, "i2cset -y %d 0x2%d 0x0A %s", i2cdevnumber, audioi2caddress, hexstring);
   // printf("\n%s\n\n", i2cstring);
   system(i2cstring);
+
+  // Store the current status
+  for (i = 0; i <= 7; i++)
+  {
+    currenti2caudiostatus[i] = bitv[i];
+  }
 }
 
 void Select_HDMI_Switch(int selection)        // selection is between -1 (quad), 0 and availableinputs
@@ -1497,10 +1529,10 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
 
     if (selection == -1)                          // Quad View requested
     {
-      bitv[outputaudioi2cbit[1]] = 1;
-      bitv[outputaudioi2cbit[2]] = 1;
-      bitv[outputaudioi2cbit[3]] = 1;
-      bitv[outputaudioi2cbit[4]] = 1;
+      bitv[outputaudioi2cbit[1]] = inputactive[1];  // Only select active audios
+      bitv[outputaudioi2cbit[2]] = inputactive[2];
+      bitv[outputaudioi2cbit[3]] = inputactive[3];
+      bitv[outputaudioi2cbit[4]] = inputactive[4];
     }
 
     if ((selection >= 0)  && (selection <= availableinputs))
@@ -1737,7 +1769,9 @@ void repeaterEngine()
 
       printf("Input status change.  Current Output = %d, New Output = %d\n", current_output, new_output);
 
-      if ((new_output != current_output) || ((previous_status_screenoveride = true) && (StatusScreenOveride == false))) // only change if there is a change
+      if ((new_output != current_output) || (new_output == -1) ||
+         ((previous_status_screenoveride = true) && (StatusScreenOveride == false)))
+         // only change if there is a change or quad is selected
       {
         // Reset the exit from status screen trigger
         if ((previous_status_screenoveride = true) && (StatusScreenOveride == false))
@@ -1756,7 +1790,6 @@ void repeaterEngine()
           {
             DisplayK();  // and then go to carousel
           }
-
         }
         else                   // An input is active
         {
@@ -1863,9 +1896,16 @@ int main(int argc, char *argv[])
 
   initScreen();
 
-  // Start the ident timer in a thread
-  printf("Creating ident timer thread\n");
-  pthread_create (&thidenttimer, NULL, &Show_Ident, NULL);
+  // Start the ident timer in a thread if required
+  if (identinterval > 1)
+  {
+    printf("Creating ident timer thread\n");
+    pthread_create (&thidenttimer, NULL, &Show_Ident, NULL);
+  }
+  else
+  {
+    printf("Ident disabled in config file\n");
+  }
 
   // Monitor the input status lines in a thread
   printf("Creating input status monitor thread\n");

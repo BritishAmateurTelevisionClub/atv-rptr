@@ -112,6 +112,10 @@ int screen_width;                                  // These are defined in the c
 int screen_height;                                 // but only used for text sizing
 char StatusForConfigDisplay[100];                  // Status to be shown on config display
 
+// Audio Parameters
+
+int currenti2caudiostatus[8];                      // used to enable intelligent switching of ident
+
 int localGPIO;                                     // Identifier for piGPIO
 
 

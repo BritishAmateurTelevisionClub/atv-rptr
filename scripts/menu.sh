@@ -599,10 +599,16 @@ do_dtmf_replay()
         | grep -E "USB Audio Device|USB AUDIO|Head|Sound Device" \
         | head -c 6 | tail -c 1)"
 
+  # Set audio gain (0 - 100, default 62)
+  AUDIO_GAIN=$(get_config_var dtmfaudiogain $CONFIGFILE)
+  AUDIO_GAIN+="%"
+
+  echo
+  echo "Setting the DTMF Mic Capture gain to "$AUDIO_GAIN
+  amixer -c $CARD -- sset Mic Capture $AUDIO_GAIN >/dev/null 2>/dev/null
 
   echo
   echo "Setting the HDMI Audio Gain to Max"
-  echo
   amixer -c 0  -- sset HDMI Playback Volume 100% >/dev/null 2>/dev/null
  
   echo

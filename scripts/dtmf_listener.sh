@@ -43,7 +43,7 @@ CARD="$(arecord -l \
 AUDIO_GAIN=$(get_config_var dtmfaudiogain $CONFIGFILE)
 AUDIO_GAIN+="%"
 
-amixer -c $CARD -- sset Mic Capture $AUDIO_GAIN #> /dev/null 2>&1
+amixer -c $CARD -- sset Mic Capture $AUDIO_GAIN >/dev/null 2>/dev/null
 
 # Initialise
 CODE="blocked"
@@ -53,7 +53,7 @@ while read l1 ;do
     set -- $l1 
     #echo  "$l1"
     DTMF_CODE=${l1:6:1}                                   # Extract the DTMF Character
-    #echo $DTMF_CODE
+    echo "DTMF Code Received: "$DTMF_CODE
 
     if [[ "$DTMF_CODE" == "*" ]]; then                    # Character is * so reset and initialise
       #echo STAR

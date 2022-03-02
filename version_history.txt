@@ -1,3 +1,8 @@
+202203030
+Enabled suppression of Ident
+Added Ident i2c audio switching
+Added selective quad i2c audio switching
+
 202202260
 Add html control of video switch as an option
 Correct bug in dtmf dispaly overide selection

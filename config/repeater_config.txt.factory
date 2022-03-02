@@ -109,6 +109,7 @@ i2cdtmfgpioin1label=cabinet_lid
 backimage=/home/pi/atv-rptr/media/batc_background.jpg
 
 # Ident info (audio is on/off) Pitch in Hz, speed in wpm, level is %
+# Set identinterval to 0 for no ident.  Set identmediatype to none for no ident video
 identinterval=900
 identmediatype=jpg
 identmediaduration=5
