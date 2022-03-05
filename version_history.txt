@@ -1,3 +1,7 @@
+202203050
+Cure incorrect selections with fluttering input valid signals
+Add logs for fault-finding
+
 202203030
 Enabled suppression of Ident
 Added Ident i2c audio switching

@@ -28,6 +28,7 @@ pkill dtmf_listener.sh >/dev/null 2>/dev/null
 sudo killall arecord >/dev/null 2>/dev/null
 sudo killall -9 fbi >/dev/null 2>/dev/null
 sudo killall rptr >/dev/null 2>/dev/null
+sudo killall speaker-test >/dev/null 2>/dev/null
 
 cd /home/pi
 reset
@@ -62,7 +63,7 @@ then
   ps cax | grep 'multimon-ng' > /dev/null
   if [ $? -ne 0 ]; then
     echo "DTMF Process is not running.  Starting the DTMF Listener"
-    (/home/pi/atv-rptr/scripts/dtmf_listener.sh /dev/null 2>/dev/null) &
+    (/home/pi/atv-rptr/scripts/dtmf_listener.sh >/dev/null 2>/dev/null) &
   fi
 fi
 

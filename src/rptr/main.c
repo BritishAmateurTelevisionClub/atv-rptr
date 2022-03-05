@@ -1034,6 +1034,10 @@ void *Show_Ident(void * arg)
   bool i2caudioswitchforident = false;
   int i;
 
+  time_t t; 
+  struct tm tm;
+  int previous_minute = 0;
+
   last_ident = monotonic_ms();
   ident_required = last_ident  + identinterval * 1000;
   ident_finish = last_ident + (identinterval + identmediaduration) * 1000;
@@ -1060,6 +1064,15 @@ void *Show_Ident(void * arg)
           refresh_status_second_count = 0;
         }
         refresh_status_second_count = refresh_status_second_count + 1;
+      }
+
+      // Write time to log once per minute
+      t = time(NULL);
+      tm = *gmtime(&t);
+      if (tm.tm_min != previous_minute)
+      {
+        printf("Log Timespamp: %d-%02d-%02d %02d:%02d:%02d UTC\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+        previous_minute = tm.tm_min;
       }
     }
 
@@ -1236,6 +1249,17 @@ void *Show_K_Carousel(void * arg)
   while (monotonic_ms() < media_start + kmediaduration * 1000)
   {
     usleep(10000);
+    if ((inputactive[1] == 1) ||
+        (inputactive[2] == 1) ||
+        (inputactive[3] == 1) ||
+        (inputactive[4] == 1) ||
+        (inputactive[5] == 1) ||
+        (inputactive[6] == 1) ||
+        (inputactive[7] == 1))            // An Input is active
+    {
+      media_start = monotonic_ms() - kmediaduration * 1000;
+      printf("Exiting K display duration as active input detected\n");
+    }
   }
 
   printf("Finished displaying the K\n");
@@ -1277,7 +1301,7 @@ void *Show_K_Carousel(void * arg)
 
           // Release fbi
           pthread_mutex_unlock(&fbi_lock);
-          printf("Carousel Scene %d displayed\n", i);
+          printf("Carousel Scene %d displayed: Image\n", i);
         }
 
         if (strcmp(carouselmediatype[i], "source") == 0)       // Scene is a source
@@ -1291,7 +1315,7 @@ void *Show_K_Carousel(void * arg)
           {
             Select_HDMI_Switch(carouselSource);
             inputAfterIdent = carouselSource;
-            printf("Carousel Scene %d Source %d displayed\n", i, carouselSource);
+            printf("Carousel Scene %d displayed: Source %d\n", i, carouselSource);
           }
         }
 
@@ -1303,11 +1327,11 @@ void *Show_K_Carousel(void * arg)
 
           // Select_HDMI_Switch(0);
           inputAfterIdent = 0;
-          printf("Status Page displayed in carousel\n");
+          printf("Carousel Scene %d displayed: Status Page\n", i);
         }
       }
 
-      // Now wait kmediaduration seconds
+      // Now wait (carouselmediaduration[i] * 1000) seconds
 
       while ((run_carousel == true) && (monotonic_ms() < media_start + (carouselmediaduration[i] * 1000)))
       {
@@ -1353,6 +1377,8 @@ void *Show_K_Carousel(void * arg)
     }
   }
   strcpy(StatusForConfigDisplay, "Exiting the Carousel");
+  printf("EXITing the KCarousel thread\n");
+
   return NULL;
 }
 
@@ -1440,7 +1466,7 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
         usleep(100000);     // Let switch settle
 
         snprintf(IRCommandStub, 30, "%s", outputcode[selection] + 1);     // start at the 2nd character
-        printf("IRCommandStub = -%s-\n", IRCommandStub);
+        printf("Upstream (quad) IRCommandStub = -%s-\n", IRCommandStub);
         snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", IRCommandStub);
         system(SystemCommand);
 
@@ -1449,12 +1475,14 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
         usleep(100000);     // Let switch settle
 
         // Select daisy chain input on downstream switch
+        printf("Downstream IRCommandStub = -%s-\n", output2ndhdmicode);
         snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", output2ndhdmicode);
         system(SystemCommand);
       }
       else                                  // Not daisy-chained switches
       {
         snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputcode[selection]);
+        printf("Downstream or only IRCommandStub = -%s-\n", outputcode[selection]);
         system(SystemCommand);
       }
     }
@@ -1468,7 +1496,7 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
         usleep(100000);     // Let switch settle
 
         snprintf(IRCommandStub, 30, "%s", outputhdmiquadcode + 1);   // start at the 2nd character
-        printf("IRCommandStub = -%s-\n", IRCommandStub);
+        printf("Upstream (quad) IRCommandStub = -%s-\n", IRCommandStub);
         snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", IRCommandStub);
         system(SystemCommand);
 
@@ -1478,11 +1506,13 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
 
         // Select daisy chain input on downstream switch
         snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", output2ndhdmicode);
+        printf("Downstream IRCommandStub = -%s-\n", output2ndhdmicode);
         system(SystemCommand);
       }
       else                                // Not daisy-chained switches
       {
         snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputhdmiquadcode);
+        printf("Downstream or only IRCommandStub = -%s-\n", outputhdmiquadcode);
         system(SystemCommand);
       }
     }
@@ -1788,7 +1818,21 @@ void repeaterEngine()
           inputAfterIdent = 0;      // global for return from ident
           if ((ident_active == false) && (StatusScreenOveride == false))
           {
-            DisplayK();  // and then go to carousel
+            if ((inputactive[1] == 1) ||
+                (inputactive[2] == 1) ||
+                (inputactive[3] == 1) ||
+                (inputactive[4] == 1) ||
+                (inputactive[5] == 1) ||
+                (inputactive[6] == 1) ||
+                (inputactive[7] == 1))
+            {
+              printf("Although signal had dropped, exiting before K as new signal is up\n");;
+              inputStatusChange = true;
+            }
+            else
+            {
+              DisplayK();  // and then go to carousel
+            }
           }
         }
         else                   // An input is active
@@ -1797,7 +1841,7 @@ void repeaterEngine()
           {
             strcpy(StatusForConfigDisplay, "Announcing New Input");
 
-            inputChangeDuringAnnounce = Switchto(new_output);   // So announce the new input and switch to it, show K on controller
+            inputChangeDuringAnnounce = Switchto(new_output);   // So announce the new input and switch to it, then show K on controller
             printf("inputChangeDuringAnnounce = %d \n", inputChangeDuringAnnounce);
           }
           if (inputChangeDuringAnnounce == 0)  // Input stayed on until after input was selected
@@ -1806,7 +1850,6 @@ void repeaterEngine()
             inputselected = new_output; // Is this still required?
             inputAfterIdent = new_output; // global for return from ident
           }
-          //pthread_join(thkcarousel, NULL);
         }
       }
 
@@ -1828,6 +1871,21 @@ void repeaterEngine()
       {
         update_status_screen();
         Select_HDMI_Switch(0);
+      }
+    }
+    else                 // Error check
+    {
+      if(((inputactive[1] == 1) ||
+          (inputactive[2] == 1) ||
+          (inputactive[3] == 1) ||
+          (inputactive[4] == 1) ||
+          (inputactive[5] == 1) ||
+          (inputactive[6] == 1) ||
+          (inputactive[7] == 1)) &&
+          (inputAfterIdent == 0))    // An Input is active, but input 0 is selected
+      {
+        printf("Caught condition of active input, but input 0 selected.  Correcting.\n");
+        inputStatusChange = true;
       }
     }
     usleep (10000); // 10ms loop

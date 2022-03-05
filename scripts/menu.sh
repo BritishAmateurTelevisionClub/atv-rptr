@@ -907,6 +907,7 @@ do_callsign()
   fi
 }
 
+
 do_Active_Hold()
 {
   ACTIVE_HOLD=$(get_config_var activeinputhold $CONFIGFILE)
@@ -1380,13 +1381,13 @@ do_reload()
   sudo killall arecord >/dev/null 2>/dev/null
   sudo killall -9 fbi >/dev/null 2>/dev/null
   sudo killall rptr >/dev/null 2>/dev/null
+  sudo killall speaker-test >/dev/null 2>/dev/null
 
   # Check that the config file is in unix format, convert if not
   dos2unix < "$CONFIGFILE" | cmp - "$CONFIGFILE" >/dev/null 2>/dev/null
   if [ $? != 0 ]; then
     dos2unix "$CONFIGFILE" >/dev/null 2>/dev/null
   fi
-
 
   # Put up the Start-up Splash Screen, which will be killed by the repeater process
   sudo fbi -T 1 -noverbose -a /home/pi/atv-rptr/media/starting_up.jpg >/dev/null 2>/dev/null
@@ -1459,6 +1460,7 @@ do_Shutdown2()
   sudo shutdown now
 }
 
+
 do_Shutdown()
 {
   menuchoice=$(whiptail --title "REALLY SHUTDOWN? SITE VISIT??" --menu "Select Choice and press enter" 16 78 4 \
@@ -1480,7 +1482,6 @@ do_Exit()
 }
 
 
-
 do_shutdown_menu()
 {
   menuchoice=$(whiptail --title "Repeater Reboot Menu" --menu "Select Choice and press enter" 16 78 4 \
@@ -1493,17 +1494,6 @@ do_shutdown_menu()
       2\ *) do_Reboot ;;
       3\ *) do_Shutdown ;;
     esac
-}
-
-
-
-do_receive()
-{
-  /home/pi/ryde-build/rx.sh &
-
-  # Wait here receiving until user presses a key
-  whiptail --title "Receiving" --msgbox "Touch any key to stop receiving" 8 78
-  do_stop
 }
 
 

@@ -30,28 +30,13 @@ sudo killall -9 fbi >/dev/null 2>/dev/null
 sudo killall rptr >/dev/null 2>/dev/null
 sudo killall speaker-test >/dev/null 2>/dev/null
 
+cd /home/pi
+
 # Check that the config file is in unix format, convert if not
 dos2unix < "$CONFIGFILE" | cmp - "$CONFIGFILE" >/dev/null 2>/dev/null
 if [ $? != 0 ]; then
   dos2unix "$CONFIGFILE" >/dev/null 2>/dev/null
 fi
-
-cd /home/pi/atv-rptr/src/rptr
-touch main.c
-
-make
-if [ $? != "0" ]; then
-  echo
-  echo "failed install"
-  cd /home/pi
-  exit
-fi
-
-sudo make install
-
-cd /home/pi
-reset
-
 
 # Put up the Start-up Splash Screen, which will be killed by the repeater process
 sudo fbi -T 1 -noverbose -a /home/pi/atv-rptr/media/starting_up.jpg >/dev/null 2>/dev/null
@@ -82,7 +67,7 @@ then
 fi
 
 # Start the Repeater Controller
-/home/pi/atv-rptr/bin/rptr
+(/home/pi/atv-rptr/bin/rptr >/dev/null 2>/dev/null) &
 exit
 
 
