@@ -89,7 +89,7 @@ dtmfgpioout1off=41
 # Inputs have nothing to do with dtmf.  dtmfinputs defines how many inputs.
 # Subsequent 2 lines can be repeated
 dtmfinputs=1
-dtmfgpioin1pin=8
+dtmfgpioin1pin=11
 dtmfgpioin1label=cabinet_door
 
 # i2c Accessory DTMF Control examples.  MCP23017. Max 16 lines either in or out

@@ -272,7 +272,7 @@ void UDP_Command(int command_code)
     return;
   }
 
-  for (i = 0; i <= 7; i++)
+  for (i = 0; i <= availableinputs; i++)
   {
     if (command_code == dtmfselectinput[i])
     {

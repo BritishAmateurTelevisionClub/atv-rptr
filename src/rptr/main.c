@@ -63,18 +63,20 @@ pthread_mutex_t fbi_lock;
 void GetConfigParam(char *PathConfigFile, char *Param, char *Value);
 void SetConfigParam(char *PathConfigFile, char *Param, char *Value);
 void strcpyn(char *outstring, char *instring, int n);
+void trimTrailing(char * str);
 void log_rptr_error(char *errorstring);
-//void runInputStatusMonitor();
-void update_status_screen();
-void Select_HDMI_Switch(int);
-int Switchto(int);
-void Seti2cAudioSwitch(int bitv[8]);
-
-
 void read_config_file();
-
 void setUpGPIO();
-
+void update_status_screen();
+void fbiThenKill(char *PathImageFile);
+void *Show_Ident(void * arg);
+void *Show_K_Carousel(void * arg);
+void Seti2cAudioSwitch(int bitv[8]);
+void Select_HDMI_Switch(int selection);
+int Switchto(int new_output);
+void DisplayK();
+int priorityDecision();
+void repeaterEngine();
 
 /***************************************************************************//**
  * @brief Looks up the value of a Param in PathConfigFile and sets value
@@ -131,6 +133,8 @@ void GetConfigParam(char *PathConfigFile, char *Param, char *Value)
     printf("Config file not found \n");
   }
   fclose(fp);
+
+  trimTrailing(Value);
 
   if (strlen(Value) == 0)  // Log error if parameter undefined
   {  
@@ -226,6 +230,33 @@ void strcpyn(char *outstring, char *instring, int n)
     outstring[i] = instring[i];
   }
   outstring[n] = '\0'; // Terminate the outstring
+}
+
+/***************************************************************************//**
+ * @brief Trims trailing spaces in strings
+ *
+ * @param *str
+ *
+ * @return void
+*******************************************************************************/
+void trimTrailing(char * str)
+{
+  int index = -1;
+  int i = 0;
+
+  // Find last index of non-white space character
+
+  while(str[i] != '\0')
+  {
+    if (str[i] != ' ' && str[i] != '\t' && str[i] != '\n')
+    {
+      index= i;
+    }
+     i++;
+  }
+
+  /* Mark next character to last non-white space character as NULL */
+  str[index + 1] = '\0';
 }
 
 /***************************************************************************//**
@@ -419,6 +450,14 @@ void read_config_file()
     fpsdGPIO = PinToBroadcom(atoi(Value));
   }
 
+  // Number of inputs
+  strcpy(Value, "");
+  GetConfigParam(PATH_CONFIG, "availableinputs", Value);
+  availableinputs = atoi(Value);
+  if ((availableinputs < 1) || (availableinputs > 7))
+  {
+    availableinputs = 7;
+  }
 
   // DTMF Config
 
@@ -459,7 +498,7 @@ void read_config_file()
   GetConfigParam(PATH_CONFIG, "dtmfkeeperreboot", dtmfkeeperrebootcode);
 
   // DTMF Input Select codes
-  for (i = 0; i <= 7; i++)
+  for (i = 0; i <= availableinputs; i++)
   {
     strcpy(Value, "");
     snprintf(Param, 127, "dtmfselectinput%d", i);
@@ -680,14 +719,6 @@ void read_config_file()
 
   // Input and Output Configuration
 
-  // Number of inputs
-  strcpy(Value, "");
-  GetConfigParam(PATH_CONFIG, "availableinputs", Value);
-  availableinputs = atoi(Value);
-  if ((availableinputs < 1) || (availableinputs > 7))
-  {
-    availableinputs = 7;
-  }
 
   // html switched
   if (strcmp(outputswitchcontrol, "html") == 0)
@@ -801,9 +832,240 @@ void read_config_file()
 void setUpGPIO()
 {
   int i;
+  int pin;
+  bool pin_in_use = false;
+  bool pin_conflict = false;
+  char pinfunction_pri[63];
+  char pinfunction_sec[63];
+
+  // Check for GPIO Conflicts:
+  for (pin = 1; pin <= 40; pin++)
+  {
+    pin_in_use = false;
+    pin_conflict = false;
+
+    switch (pin)
+    {
+      case 1:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "3.3 volts out");
+        break;
+      case 2:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "5 volts in");
+        break;
+      case 4:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "5 volts in");
+        break;
+      case 6:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "Ground");
+        break;
+      case 8:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "i2c sda if used");
+        break;
+      case 9:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "Ground");
+        break;
+      case 10:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "i2c scl if used");
+        break;
+      case 12:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "IR Sender Output");
+        break;
+      case 13:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "IR Bank Select");
+        break;
+      case 14:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "Ground");
+        break;
+      case 17:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "3.3 volts out");
+        break;
+      case 20:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "Ground");
+        break;
+      case 25:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "Ground");
+        break;
+      case 27:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "Reserved for RPi Hat EEPROM");
+        break;
+      case 28:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "Reserved for RPi Hat EEPROM");
+        break;
+      case 30:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "Ground");
+        break;
+      case 34:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "Ground");
+        break;
+      case 39:
+        pin_in_use = true;
+        strcpy(pinfunction_pri, "Ground");
+        break;
+    }
+
+    // Input Active signal inputs
+    for (i = 1; i <= availableinputs ; i++)
+    {
+      if (pin_in_use == false)
+      {
+        if (inputactiveGPIO[i] == PinToBroadcom(pin))
+        {
+          pin_in_use = true;
+          snprintf(pinfunction_pri, 62, "Input %d Active Signal", i);
+        }
+      }
+      else       // pin already in use
+      {
+        if (inputactiveGPIO[i] == PinToBroadcom(pin))
+        {
+          pin_conflict = true;
+          snprintf(pinfunction_sec, 62, "Input %d Active Signal", i);
+        }
+      }
+    }
+
+    // Output select Outputs
+    if ((showoutputongpio == true) || (strcmp(outputswitchcontrol, "gpio") == 0))
+    {
+      for (i = 1; i <= availableinputs ; i++)
+      {
+        if (pin_in_use == false)
+        {
+          if (outputGPIO[i] == PinToBroadcom(pin))
+          {
+            pin_in_use = true;
+            snprintf(pinfunction_pri, 62, "Output %d Select Signal", i);
+          }
+        }
+        else       // pin already in use
+        {
+          if (outputGPIO[i] == PinToBroadcom(pin))
+          {
+            pin_conflict = true;
+            snprintf(pinfunction_sec, 62, "Output %d Select Signal", i);
+          }
+        }
+      }
+    }
+
+    // PTT GPIO
+    if (pin_in_use == false)
+    {
+      if (pttGPIO == PinToBroadcom(pin))
+      {
+        pin_in_use = true;
+        snprintf(pinfunction_pri, 62, "PTT Activate Pin");
+      }
+    }
+    else       // pin already in use
+    {
+      if (pttGPIO == PinToBroadcom(pin))
+      {
+        pin_conflict = true;
+        snprintf(pinfunction_sec, 62, "PTT Activate Pin");
+      }
+    }
+
+    // Shutdown button GPIO
+    if (fpsdenabled == true)
+    {
+      if (pin_in_use == false)
+      {
+        if (fpsdGPIO == PinToBroadcom(pin))
+        {
+          pin_in_use = true;
+          snprintf(pinfunction_pri, 62, "Shutdown Button Pin");
+        }
+      }
+      else       // pin already in use
+      {
+        if (fpsdGPIO == PinToBroadcom(pin))
+        {
+          pin_conflict = true;
+          snprintf(pinfunction_sec, 62, "Shutdown Button Pin");
+        }
+      }
+    }
+
+    // Accessory output GPIOs
+    if (dtmfoutputs > 0)
+    {
+      for (i = 1; i <= dtmfoutputs ; i++)
+      {
+        if (pin_in_use == false)
+        {
+          if (dtmfoutputGPIO[i] == PinToBroadcom(pin))
+          {
+            pin_in_use = true;
+            snprintf(pinfunction_pri, 62, "DTMF Logic Output %d", i);
+          }
+        }
+        else       // pin already in use
+        {
+          if (dtmfoutputGPIO[i] == PinToBroadcom(pin))
+          {
+            pin_conflict = true;
+            snprintf(pinfunction_sec, 62, "DTMF Logic Output %d", i);
+          }
+        }
+      }
+    }
+
+    // Accessory Input GPIOs
+    if (dtmfinputs > 0)
+    {
+      for (i = 1; i <= dtmfinputs ; i++)
+      {
+        if (pin_in_use == false)
+        {
+          if (dtmfinputGPIO[i] == PinToBroadcom(pin))
+          {
+            pin_in_use = true;
+            snprintf(pinfunction_pri, 62, "Accessory input %d", i);
+          }
+        }
+        else       // pin already in use
+        {
+          if (dtmfinputGPIO[i] == PinToBroadcom(pin))
+          {
+            pin_conflict = true;
+            snprintf(pinfunction_sec, 62, "Accessory input %d", i);
+          }
+        }
+      }
+    }
+
+    if (pin_conflict == true)
+    {
+      printf("#################################\n");
+      printf("#                               #\n");
+      printf("#  WARNING - GPIO PIN CONFLICT  #\n");
+      printf("#                               #\n");
+      printf("#################################\n\n");
+      printf("GPIO Pin %d allocated to %s and %s\n\n", pin, pinfunction_pri, pinfunction_sec);
+    }
+  }
+
 
   // Set all the "Input Active" GPIOs to read-only
-  for (i = 1; i <= 7 ; i++)
+  for (i = 1; i <= availableinputs ; i++)
   {
     set_mode(localGPIO, inputactiveGPIO[i], 0);
   }
@@ -824,17 +1086,20 @@ void setUpGPIO()
     }
   }
 
-  // If GPIO-switched HDMI, set the outputs and set to low
-  for (i = 0; i <= 7 ; i++)
+  // If GPIO-switched video switching, set the outputs and set to low
+  if ((showoutputongpio == true) || (strcmp(outputswitchcontrol, "gpio") == 0))
   {
-    set_mode(localGPIO, outputGPIO[i], 1);
-    gpio_write(localGPIO, outputGPIO[i], 0);
+    for (i = 0; i <= availableinputs ; i++)
+    {
+      set_mode(localGPIO, outputGPIO[i], 1);
+      gpio_write(localGPIO, outputGPIO[i], 0);
+    }
   }
 
   // Set Accessory output GPIO as outputs and low
   if (dtmfoutputs > 0)
   {
-    for (i = 0; i <= dtmfoutputs ; i++)
+    for (i = 1; i <= dtmfoutputs ; i++)
     {
       set_mode(localGPIO, dtmfoutputGPIO[i], 1);
       gpio_write(localGPIO, dtmfoutputGPIO[i], 0);
@@ -844,7 +1109,7 @@ void setUpGPIO()
   // Set Accessory input GPIO as inputs
   if (dtmfinputs > 0)
   {
-    for (i = 0; i <= dtmfinputs ; i++)
+    for (i = 1; i <= dtmfinputs ; i++)
     {
       set_mode(localGPIO, dtmfinputGPIO[i], 0);
     }
@@ -924,7 +1189,7 @@ void update_status_screen()
   Text2(screen_width * 15 / 32, screen_height - (11 * (line_height / 2)), "Output", font_ptr);
 
  
-  for(i = 0 ; i <= 7 ; i++)
+  for(i = 0 ; i <= availableinputs ; i++)
   {
     snprintf(display_text, 2, "%d", i);
     Text2(screen_width / 32, screen_height - ((7 + i) * line_height), display_text, font_ptr);
@@ -1307,7 +1572,7 @@ void *Show_K_Carousel(void * arg)
         if (strcmp(carouselmediatype[i], "source") == 0)       // Scene is a source
         {
           carouselSource = atoi(carouselfile[i]);
-          if ((carouselSource < 1) || (carouselSource > 7))
+          if ((carouselSource < 1) || (carouselSource > availableinputs))
           {
             carouselSource = 0;
           }
@@ -1635,7 +1900,7 @@ int Switchto(int new_output)
   pthread_mutex_unlock(&fbi_lock);
 
   // Final check for an input change
-  for (i = 1; i <= 7; i++)
+  for (i = 1; i <= availableinputs; i++)
   {
     if (inputActiveInitialState[i] != inputactive[i])
     {
@@ -1667,7 +1932,7 @@ int priorityDecision()
 
   // Record initial state to monitor for changes
   printf("Setting inputActiveInitialState ");
-  for (i = 1; i <= 7; i++)
+  for (i = 1; i <= availableinputs; i++)
   {
     inputActiveInitialState[i] = inputactive[i];
     printf("%d: %d, ", i, inputActiveInitialState[i]);

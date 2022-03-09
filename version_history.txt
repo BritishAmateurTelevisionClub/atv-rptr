@@ -1,3 +1,7 @@
+202203090
+Improve GPIO control and error-checking
+Strip trailing spaces in config file
+
 202203050
 Cure incorrect selections with fluttering input valid signals
 Add logs for fault-finding

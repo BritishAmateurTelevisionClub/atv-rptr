@@ -121,7 +121,7 @@ int GetSWVers()
 
 int PinToBroadcom(int Pin)
 {
-  int Broadcom = 0;  // Illegal (reserved) default
+  int Broadcom = -1;  // Illegal default
 
   switch(Pin)
   {
