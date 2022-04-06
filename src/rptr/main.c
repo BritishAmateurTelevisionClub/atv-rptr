@@ -1152,6 +1152,9 @@ void update_status_screen()
   setForeColour(255, 255, 255);
   const font_t *font_ptr = &font_dejavu_sans_30;
 
+  char ipaddress[17] = "Not connected";
+  GetIPAddr(ipaddress);
+
   switch(screen_height)
   {
     case 1080:
@@ -1234,14 +1237,18 @@ void update_status_screen()
     }
   }
 
+
   snprintf(display_text, 31, "SW Version %d", GetSWVers());
   Text2(screen_width * 22 / 32, screen_height - (5 * line_height), display_text, font_ptr);
 
-  snprintf(display_text, 31, "CPU Temp %.1f C", GetCPUTemp());
+  snprintf(display_text, 31, "Local IP %s", ipaddress);
   Text2(screen_width * 22 / 32, screen_height - (6 * line_height), display_text, font_ptr);
 
-  snprintf(display_text, 31, "UTC Time: %02d:%02d", tm.tm_hour, tm.tm_min);
+  snprintf(display_text, 31, "CPU Temp %.1f C", GetCPUTemp());
   Text2(screen_width * 22 / 32, screen_height - (7 * line_height), display_text, font_ptr);
+
+  snprintf(display_text, 31, "UTC Time: %02d:%02d", tm.tm_hour, tm.tm_min);
+  Text2(screen_width * 22 / 32, screen_height - (8 * line_height), display_text, font_ptr);
 
   if (dtmfinputs > 0)
   {
@@ -1256,7 +1263,7 @@ void update_status_screen()
       {
         snprintf(display_text, 63, "%s: ON ", dtmfgpioinlabel[i]);
       }
-      Text2(screen_width * 22 / 32, screen_height - ((7 + i) * line_height), display_text, font_ptr);
+      Text2(screen_width * 22 / 32, screen_height - ((8 + i) * line_height), display_text, font_ptr);
     }
   }
 
@@ -1305,7 +1312,7 @@ void *Show_Ident(void * arg)
 
   last_ident = monotonic_ms();
   ident_required = last_ident  + identinterval * 1000;
-  ident_finish = last_ident + (identinterval + identmediaduration) * 1000;
+  ident_finish = last_ident + (identinterval + identmediaduration) * 1000 + 2000;  // Add 2000 ms for approx process time
   printf("Starting Ident Thread.  Ident Interval = %d\n", identinterval);
   quiet_hours_check = monotonic_ms() + 1000;
   int refresh_status_second_count = 0;
@@ -1409,11 +1416,15 @@ void *Show_Ident(void * arg)
 
       // Raise PTT if required
       PTTEvent(5);
+
+      // Now set the exact ident finish time
+      ident_finish = monotonic_ms() + identmediaduration * 1000;  // Sets the exact ident finish time
     }
 
     if (monotonic_ms() > ident_finish)
     {
-      ident_finish = ident_required + identmediaduration * 1000;
+      ident_finish = ident_required + identmediaduration * 1000 + 2000;  // Set approx ident finish time in the future
+
       ident_active = false;
 
       // Switch to status display if required
@@ -1451,7 +1462,7 @@ void *Show_Ident(void * arg)
 void *Show_K_Carousel(void * arg)
 {
   uint64_t media_start;
-  bool run_carousel = true;
+  run_carousel = true;
   int i;
   int next_i;
   int carouselSource;
@@ -2162,6 +2173,7 @@ static void
 terminate(int dummy)
 {
   run_repeater = false;
+  run_carousel = false;
 
   // Deselect PTT and close GPIO
   PTTEvent(0);

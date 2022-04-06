@@ -5,5 +5,6 @@ int file_exist(char *);
 float GetCPUTemp();
 int GetSWVers();
 int PinToBroadcom(int);
+void GetIPAddr(char IPAddress[17]);
 
 #endif /* __LOOKUPS_H__ */

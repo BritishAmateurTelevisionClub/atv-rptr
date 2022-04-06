@@ -1,3 +1,7 @@
+202204060
+Bugfix ident switching on short ident durations
+Show local IP address on config screen
+
 202203090
 Improve GPIO control and error-checking
 Strip trailing spaces in config file

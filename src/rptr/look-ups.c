@@ -112,6 +112,36 @@ int GetSWVers()
 }
 
 /***************************************************************************//**
+ * @brief Looks up the current IPV4 address
+ *
+ * @param IPAddress (str) IP Address to be passed as a string
+ *
+ * @return void
+*******************************************************************************/
+
+void GetIPAddr(char IPAddress[17])
+{
+  FILE *fp;
+
+  /* Open the command for reading. */
+  fp = popen("ifconfig | grep -Eo \'inet (addr:)?([0-9]*\\.){3}[0-9]*\' | grep -Eo \'([0-9]*\\.){3}[0-9]*\' | grep -v \'127.0.0.1\' | head -1", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(IPAddress, 16, fp) != NULL)
+  {
+    //printf("%s", IPAddress);
+  }
+
+  /* close */
+  pclose(fp);
+}
+
+
+/***************************************************************************//**
  * @brief Looks up the Broadcom number for a physical GPIO pin
  *
  * @param GPIO physical pin number
