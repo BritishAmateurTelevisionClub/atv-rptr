@@ -837,12 +837,15 @@ void setUpGPIO()
   bool pin_conflict = false;
   char pinfunction_pri[63];
   char pinfunction_sec[63];
+  strcpy(pinfunction_sec, "");
 
   // Check for GPIO Conflicts:
   for (pin = 1; pin <= 40; pin++)
   {
     pin_in_use = false;
     pin_conflict = false;
+    strcpy(pinfunction_pri, "not used");
+    strcpy(pinfunction_sec, "");
 
     switch (pin)
     {
@@ -944,7 +947,7 @@ void setUpGPIO()
     // Output select Outputs
     if ((showoutputongpio == true) || (strcmp(outputswitchcontrol, "gpio") == 0))
     {
-      for (i = 1; i <= availableinputs ; i++)
+      for (i = 0; i <= availableinputs ; i++)
       {
         if (pin_in_use == false)
         {
@@ -1052,6 +1055,15 @@ void setUpGPIO()
       }
     }
 
+    if (strlen(pinfunction_sec) > 0)
+    {
+      printf("GPIO Pin %d allocated to %s.      Conflicting function: %s\n", pin, pinfunction_pri, pinfunction_sec);
+    }
+    else
+    {
+      printf("GPIO Pin %d allocated to %s.\n", pin, pinfunction_pri);
+    }
+
     if (pin_conflict == true)
     {
       printf("#################################\n");
@@ -1060,6 +1072,7 @@ void setUpGPIO()
       printf("#                               #\n");
       printf("#################################\n\n");
       printf("GPIO Pin %d allocated to %s and %s\n\n", pin, pinfunction_pri, pinfunction_sec);
+      strcpy(pinfunction_sec, "");
     }
   }
 
@@ -1678,12 +1691,12 @@ void Seti2cAudioSwitch(int bitv[8])
 
   // Set i2c Switch to all outputs
   snprintf(i2cstring, 120, "i2cset -y %d 0x2%d 0x00 0x00", i2cdevnumber, audioi2caddress);
-  // printf("\n%s\n\n", i2cstring);
+   printf("%s\n", i2cstring);
   system(i2cstring);
 
   // Set the output levels
   snprintf(i2cstring, 120, "i2cset -y %d 0x2%d 0x0A %s", i2cdevnumber, audioi2caddress, hexstring);
-  // printf("\n%s\n\n", i2cstring);
+   printf("%s\n", i2cstring);
   system(i2cstring);
 
   // Store the current status
@@ -1779,6 +1792,7 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
         // now switch to the downstream (second, not quad) switch
         gpio_write(localGPIO, daisychainirselectgpio, 0);
         usleep(100000);     // Let switch settle
+        usleep(100000);     // Really Let switch settle
 
         // Select daisy chain input on downstream switch
         snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", output2ndhdmicode);
@@ -1799,13 +1813,13 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
     if ((selection >= 0)  && (selection <= availableinputs))    // Normal input
     {
       snprintf(SystemCommand, 254, "curl %s%s &", networkctrlurl, outputnetcommand[selection]);
-      printf("\n-%s-\n\n", SystemCommand);
+      printf("Network Command: %s\n", SystemCommand);
       system(SystemCommand);
     }
     else                                                         // Quad View requested
     {
       snprintf(SystemCommand, 254, "curl %s%s &", networkctrlurl, outputquadnetcommand);
-      printf("\n-%s-\n\n", SystemCommand);
+      printf("Network Command: %s\n", SystemCommand);
       system(SystemCommand);
     }
   }

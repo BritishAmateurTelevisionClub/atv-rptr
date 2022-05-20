@@ -1,3 +1,7 @@
+202205200
+Increase delay between 2 IR switch Commands
+Improve GPIO allocation error-checking
+
 202204060
 Bugfix ident switching on short ident durations
 Show local IP address on config screen
