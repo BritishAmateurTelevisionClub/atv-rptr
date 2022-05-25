@@ -130,6 +130,11 @@ kcwpitch=800
 kcwlevel=85
 kcwfile=/home/pi/tmp/k.wav
 
+# Announce bleep info
+announcebleep=on
+announcebleeplevel=85
+announcebleeppitch=600
+
 # Carousel info.  Max 99 scenes
 # options for type are jpg, (mp4 not implemented yet), status or source.  For source, file is source number
 # which can be a virtual source such as a grid of 4 images

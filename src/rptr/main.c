@@ -623,6 +623,20 @@ void read_config_file()
     GetConfigParam(PATH_CONFIG, "kcwfile", kcwfile);
   }
 
+  // Announce bleep config
+  GetConfigParam(PATH_CONFIG, "announcebleep", Value);
+  if (strcmp(Value, "on") == 0)
+  {
+    announcebleep = true;
+    strcpy(Value, "");
+    GetConfigParam(PATH_CONFIG, "announcebleeplevel", Value);
+    announcebleeplevel = atoi(Value);
+    if ((announcebleeplevel < 0) || (announcebleeplevel > 100))
+    {
+      announcebleeplevel = 100;
+    }
+  }
+
   // Carousel config
 
   // Number of carousel scenes
@@ -1869,6 +1883,7 @@ int Switchto(int new_output)
 {
   uint64_t announce_start;
   int i;
+  char bleepcommand[255];
 
   // kill VLC
   // fbi cue image
@@ -1891,6 +1906,39 @@ int Switchto(int new_output)
 
     // Set PTT on if appropriate
     PTTEvent(4);
+
+    // Play Announce Bleep
+    if (announcebleep == true)
+    {
+      if (audiooutcard == 1)                    // RPi Audio Jack
+      {
+        snprintf(bleepcommand, 127, "amixer -c 1  -- sset Headphone Playback Volume %d%% >/dev/null 2>/dev/null", announcebleeplevel);
+        system (bleepcommand);
+        usleep(200000); 
+        snprintf(bleepcommand, 127, "aplay -D plughw:CARD=Headphones,DEV=0 /home/pi/tmp/announce.wav >/dev/null 2>/dev/null &");
+        system (bleepcommand);
+      }
+      else if (audiooutcard == 2)               // USB Audio Dongle
+      {
+        snprintf(bleepcommand, 127, "amixer -c 2  -- sset Speaker Playback Volume %d%% >/dev/null 2>/dev/null", announcebleeplevel);
+        system (bleepcommand);
+        usleep(200000); 
+        snprintf(bleepcommand, 127, "aplay -D plughw:CARD=Device,DEV=0 /home/pi/tmp/announce.wav >/dev/null 2>/dev/null &");
+        system (bleepcommand);
+      }
+      else                                     // HDMI and default
+      {
+        snprintf(bleepcommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", announcebleeplevel);
+        system (bleepcommand);
+        usleep(200000); 
+        snprintf(bleepcommand, 127, "aplay -D plughw:CARD=b1,DEV=0 /home/pi/tmp/announce.wav >/dev/null 2>/dev/null &");
+        system (bleepcommand);
+
+        // Reduce playback volume for keep-alive noise
+        snprintf(bleepcommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", audiokeepalivelevel);
+        system (bleepcommand);
+      }
+    }
 
     while (monotonic_ms() <= announce_start + announcemediaduration[new_output] * 1000)
     {

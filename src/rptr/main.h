@@ -80,6 +80,8 @@ int identcwlevel = 100;                            // percentage
 int kmediaduration = 3;                            // seconds
 bool kcwaudio = false;                             //
 int kcwlevel = 100;                                // percentage
+bool announcebleep = false;                        //
+int announcebleeplevel = 100;                      // percentage
 int carouselscenes = 3;                            // Max 99
 int carouselmediaduration[100];                    // seconds
 int announcemediaduration[8];                      // seconds for each input

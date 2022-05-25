@@ -149,4 +149,14 @@ if [[ "$KCWAUDIO" == "on" ]]; then
   sox ktemp.wav -r 32000 k.wav
 fi
 
+# Build the announce bleep and convert to 32000 rate to prevent glitches
+ANNOUNCEBLEEP=$(get_config_var announcebleep $CONFIGFILE)
+if [[ "$ANNOUNCEBLEEP" == "on" ]]; then
+  ANNOUNCEBLEEPSPEED=10  # Adjust for duration of bleep
+  ANNOUNCEBLEEPPITCH=$(get_config_var announcebleeppitch $CONFIGFILE)
+  cd /home/pi/tmp
+  echo " T" > t.txt
+  /home/pi/atv-rptr/bin/txt2morse -f "$ANNOUNCEBLEEPPITCH" -r "$ANNOUNCEBLEEPSPEED" -o announcetemp.wav t.txt
+  sox announcetemp.wav -r 32000 announce.wav
+fi
 
