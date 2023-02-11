@@ -48,8 +48,19 @@ extern char dtmftalkbackaudiodisablecode[31];             // Stored as a string 
 extern bool talkbackaudio;
 extern char StatusForConfigDisplay[100];
 extern int fpsdGPIO;
-extern bool fpsdenabled; 
-
+extern bool fpsdenabled;
+extern bool rackmainscontrol;
+extern bool initial_start;
+extern int rxsdbuttonGPIO;
+extern int rxmainspwrGPIO;
+extern int rxsdsignalGPIO;
+extern bool manual_receiver_switch_state;
+extern bool manual_receiver_overide;
+extern bool rxpowersave;
+extern int rxpoweron1;
+extern int rxpoweroff1;
+extern int rxpoweron2;
+extern int rxpoweroff2;
 
 
 #endif /* __LISTENERS_H__ */

@@ -26,6 +26,22 @@ transmitenabled=yes
 # Beacon mode only transmits carousel with ident.  Set to no for rptr operation. yes/no
 beaconmode=no
 
+# Control mains switch for rack (and allocate GPIOs?)
+rackmainscontrol=yes
+
+# GPIO pins for controlled rack shutdown
+racksdbuttongpiopin=21
+racksdsignalgpiopin=24
+rackmainspwrgpiopin=15
+
+# Turn off receiver rack and encoder to save power?  Times UTC
+rackpowersave=yes
+rackpoweron1=1500
+rackpoweroff1=2300
+# set second times to be equal for one power-on period only
+rackpoweron2=0000
+rackpoweroff2=0000
+
 # Continuous TX or power-saving.  no/yes
 transmitwhennotinuse=yes
 
@@ -36,7 +52,7 @@ transmitwhennotinuse=yes
 # Repeat and Ident are available/active during this time
 halfhourpowersave=no
 
-# Operating times are UTC.  Ignored for 24/7 operation
+# TX Operating times are UTC.  Ignored for 24/7 operation
 operatingtimestart=1000
 operatingtimefinish=2330
 
@@ -47,8 +63,8 @@ identduringquiethours=no
 # Transmit PTT Demand physical pin (recommended 40)
 pttgpiopin=40
 
-# Front Panel Shutdown Enabled? and physical GPIO Pin (recommended 26)
-fpshutdown=no
+# Front Panel controller Shutdown Enabled? and physical GPIO Pin (recommended 26)
+fpshutdown=yes
 fpsdgpiopin=26
 
 # DTMF control - uses white "Portsdown/Langstone" USB dongle input
@@ -80,7 +96,7 @@ dtmfselectinput7=17
 
 # RPi GPIO Accessory DTMF Control examples
 # Outputs:  dtmfoutputs defines number of outputs.  Subsequent 4 lines can be repeated
-dtmfoutputs=1
+dtmfoutputs=0
 dtmfgpioout1pin=15
 dtmfgpioout1label=shack_light
 dtmfgpioout1on=31

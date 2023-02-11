@@ -20,8 +20,10 @@
 #include<arpa/inet.h>
 #include<sys/socket.h>
 
+// #include "main.h"
 #include "listeners.h"
 #include "look-ups.h"
+#include "timing.h"
 
 #define PATH_CONFIG "/home/pi/atv-rptr/config/repeater_config.txt"
 
@@ -38,6 +40,11 @@ void *InputStatusListener(void * arg)
   bool validChangeDetected = false;
   bool sdbutton1stpress = false;
   uint64_t first_press_time;
+  int utc24time = 0;
+  time_t t; 
+  struct tm tm;
+  bool time_based_RX_demand;
+  int prevent_double_press = 0;  //  Counts down to zero from 100 to stop double-press of RX shutdown  
 
   while (run_repeater == true)
   {
@@ -115,6 +122,21 @@ void *InputStatusListener(void * arg)
         {
           if (gpio_read(localGPIO, fpsdGPIO) == 0)     // button still low
           {
+            if ((gpio_read(localGPIO, rxmainspwrGPIO) == 1) && (rackmainscontrol == true)) // current state on
+            {
+              strcpy(StatusForConfigDisplay, "Shutting down rack before shutting down controller");
+
+              // set the shutdown line low for 5 seconds, wait 10 seconds and turn the mains off
+              gpio_write(localGPIO, rxsdsignalGPIO, 0);
+
+              sleep_ms(5000);
+              strcpy(StatusForConfigDisplay, "Waiting for Rack Shutdown before shutting down controller");          
+              gpio_write(localGPIO, rxsdsignalGPIO, 1);
+
+              sleep_ms(10000);
+              strcpy(StatusForConfigDisplay, "Rack shut down.  Shutting down controller.");
+              gpio_write(localGPIO, rxmainspwrGPIO, 0);
+            }
             system("sudo shutdown now");
           }
           else                                         // button high so go back to normal
@@ -129,7 +151,179 @@ void *InputStatusListener(void * arg)
       }
     }
 
+    // Check and act on the front panel rack power switch rxsdbuttonGPIO
+    if ((gpio_read(localGPIO, rxsdbuttonGPIO) == 0) && (prevent_double_press <= 0) && (rackmainscontrol == true))
+    {
+      // Block thread and wait 0.8 seconds and then check again
+      sleep_ms(800);
+      if (gpio_read(localGPIO, rxsdbuttonGPIO) == 0)
+      {
+        // lock out button for 10 seconds
+        prevent_double_press = 100;
+
+        // Change of state requested, so check current state (rxmainspwrGPIO)
+        if (gpio_read(localGPIO, rxmainspwrGPIO) == 0)  // current state off
+        {
+          // turn the mains on and set the manual state to on
+          gpio_write(localGPIO, rxmainspwrGPIO, 1);
+          manual_receiver_switch_state = true;
+          StatusScreenOveride = true;
+          strcpy(StatusForConfigDisplay, "Starting Rack power");          
+          sleep_ms(5000);
+          StatusScreenOveride = false;
+          manual_receiver_overide = true;
+          inputStatusChange = true;
+        }
+        else                                            // current state on
+        {
+          // set the shutdown line low for 5 seconds, wait 10 seconds and turn the mains off
+          gpio_write(localGPIO, rxsdsignalGPIO, 0);
+          StatusScreenOveride = true;
+          strcpy(StatusForConfigDisplay, "Shutting Rack down");          
+          sleep_ms(5000);
+          strcpy(StatusForConfigDisplay, "Waiting for Rack Shutdown");          
+          gpio_write(localGPIO, rxsdsignalGPIO, 1);
+
+          sleep_ms(10000);
+          strcpy(StatusForConfigDisplay, "Rack shut down.  Awaiting restart");
+          gpio_write(localGPIO, rxmainspwrGPIO, 0);
+
+          // Set the manual receiver state to false
+          manual_receiver_switch_state = false; 
+          manual_receiver_overide = true;
+        }         
+      }
+    }
+    else  // reduce prevent_double_press
+    {
+      if (prevent_double_press > 0)
+      {
+        prevent_double_press = prevent_double_press - 1;
+      }
+    }
+
+    // Next check for time-based on/off if enabled for rack
+    if (rxpowersave == true)
+    {
+      // Calculate the UTC time in format 0000 - 2359
+      t = time(NULL);
+      tm = *gmtime(&t);
+      utc24time = tm.tm_hour * 100 + tm.tm_min;
+      //printf("time: %d\n", utc24time);
+
+      // Check the time-demanded receiver state and act on it
+
+      // start with assumption that RX should be off
+      time_based_RX_demand = false;
+
+      if (rxpoweron1 != rxpoweroff1)    // Valid time period 1
+      {
+        if (rxpoweron1 < rxpoweroff1)   // receiver hours do not cross midnight UTC
+        {
+          if ((utc24time < rxpoweron1) || (utc24time >= rxpoweroff1))  // in rx off hours for period 1
+          {
+            time_based_RX_demand = false;
+          }
+          else
+          {
+            time_based_RX_demand = true;
+          }
+        }
+        else                                          //  receiver hours start before midnight and end after
+        {
+          if ((utc24time < rxpoweron1) && (utc24time >= rxpoweroff1))  // in rx off hours for period 1
+          {
+            time_based_RX_demand = false;
+          }
+          else
+          {
+            time_based_RX_demand = true;
+          }
+        }  
+      }
+
+      // Now check if RX is off and there is a valid second time period
+      if((time_based_RX_demand == false) && (rxpoweron2 != rxpoweroff2))
+      {
+        if (rxpoweron2 < rxpoweroff2)   // receiver hours do not cross midnight UTC
+        {
+          if ((utc24time < rxpoweron2) || (utc24time >= rxpoweroff2))  // in rx off hours for period 2
+          {
+            time_based_RX_demand = false;
+          }
+          else
+          {
+            time_based_RX_demand = true;
+          }
+        }
+        else                                          //  receiver hours start before midnight and end after
+        {
+          if ((utc24time <  rxpoweron2) && (utc24time >= rxpoweroff2))  // rx off hours for period 2
+          {
+            time_based_RX_demand = false;
+          }
+          else
+          {
+            time_based_RX_demand = true;
+          }
+        }  
+      }
+
+      // so time_based_RX_demand says what the timer thinks.
+      // The manual state overides this.
+
+      if (manual_receiver_overide == true)           // Button has been pressed to flip state
+      {
+        if ((gpio_read(localGPIO, rxmainspwrGPIO) == 0) && (time_based_RX_demand == false))
+        {
+          // repeater had been turned off by button, but is now in a turn-off time, so set back to auto control
+          manual_receiver_overide = false;
+        }
+        if ((gpio_read(localGPIO, rxmainspwrGPIO) == 1) && (time_based_RX_demand == true))
+        {
+          // repeater had been turned on by button, but is now in a turn-on time, so set back to auto control
+          manual_receiver_overide = false;
+        }
+      }
+      else                                           // Normal operation
+      {
+        if ((time_based_RX_demand == false) && (initial_start == true))    // first start and RX should be off
+        {
+          StatusScreenOveride = true;
+          sleep_ms(2000);                // Wait for input scan so text not overwritten
+          strcpy(StatusForConfigDisplay, "Rack shut down.  Awaiting restart by time or button");
+          initial_start = false;
+        }
+
+        if ((time_based_RX_demand == true) && (gpio_read(localGPIO, rxmainspwrGPIO) == 0))
+        {
+          // Time to turn the receiver on as demand is on, rx is off
+          gpio_write(localGPIO, rxmainspwrGPIO, 1);
+          StatusScreenOveride = false;
+          inputStatusChange = true;
+
+        }
+
+        if ((time_based_RX_demand == false) && (gpio_read(localGPIO, rxmainspwrGPIO) == 1))
+        {
+          // Time to turn the receiver off as demand is on, rx is on
+          gpio_write(localGPIO, rxsdsignalGPIO, 0);
+          StatusScreenOveride = true;
+          strcpy(StatusForConfigDisplay, "Shutting Rack down");          
+
+          sleep_ms(5000);
+          gpio_write(localGPIO, rxsdsignalGPIO, 1);
+
+          sleep_ms(10000);
+          gpio_write(localGPIO, rxmainspwrGPIO, 0);
+          strcpy(StatusForConfigDisplay, "Rack shut down.  Awaiting restart");
+        }
+      }
+    }
+
     usleep(100000);  // Check buttons at 10 Hz
+    //printf("time at end: %d\n", utc24time);
+
   }
   return NULL;
 }

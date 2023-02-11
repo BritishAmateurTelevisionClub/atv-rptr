@@ -48,6 +48,15 @@ bool audiokeepalive = false;                       // Is low level audio noise r
 int audiokeepalivelevel = 85;                      // Percentage level for keepalive
 bool transmitenabled = false;                      // Is PTT enabled?
 bool beaconmode = false;                           // Run in Beacon Mode?
+bool rackmainscontrol = false;                     // Allocate GPIOs for rack mains control and use them?           
+int rxsdbuttonGPIO;                                // Front panel RX shutdown button GPIO Broadcom
+int rxsdsignalGPIO;                                // RX shutdown trigger GPIO Broadcom
+int rxmainspwrGPIO;                                // RX shutdown mains power switch GPIO Broadcom
+bool rxpowersave = false;                          // Turn receivers off to save power?
+int rxpoweron1 = 0;                                // int 0 to 2359
+int rxpoweroff1 = 0;                               // int 0 to 2359
+int rxpoweron2 = 0;                                // int 0 to 2359
+int rxpoweroff2 = 0;                               // int 0 to 2359
 bool transmitwhennotinuse = false;                 // Transmit even with no input?
 bool hour24operation = false;                      // Operate 24/7?
 bool halfhourpowersave = false;                    // Save power during second half hour in active hours?
@@ -109,6 +118,9 @@ bool in_output_overide_mode = false;
 bool run_repeater = true;                          // Used to neatly exit threads
 bool run_carousel;                                 // Used to neatly exit threads
 bool outputwasmultiinputquad = false;              // Used to prevent Announce when quad has been displayed
+bool manual_receiver_switch_state = true;          // The last manual-commanded switch state. true = on
+bool manual_receiver_overide = false;              // Set to indicate that the button has been used
+bool initial_start = true;                         // Set to indicate that status screen should be displayed if rack off
 
 // Display parameters
 int screen_width;                                  // These are defined in the config file
@@ -121,10 +133,4 @@ int currenti2caudiostatus[8];                      // used to enable intelligent
 
 int localGPIO;                                     // Identifier for piGPIO
 
-
-
-
-
-
-
-#endif /* __RPTR__ */
+#endif /* __RPTR_H__ */

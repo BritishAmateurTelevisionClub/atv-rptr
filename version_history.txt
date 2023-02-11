@@ -1,3 +1,6 @@
+202302110
+Add time and button-based rack shutdown
+
 202205250
 Add optional Announce bleep
 

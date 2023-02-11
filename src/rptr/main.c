@@ -373,6 +373,81 @@ void read_config_file()
     beaconmode = true;
   }
 
+  // Rack Mains Control?
+  strcpy(Value, "no");
+  GetConfigParam(PATH_CONFIG, "rackmainscontrol", Value);
+  if (strcmp(Value, "yes") == 0)
+  {
+    rackmainscontrol = true;
+  }
+
+  // Rack mains control parameters
+  if ( rackmainscontrol == true)
+  {
+    // Front panel Rack Shutdown Button Pin
+    strcpy(Value, "");
+    GetConfigParam(PATH_CONFIG, "racksdbuttongpiopin", Value);
+    rxsdbuttonGPIO = PinToBroadcom(atoi(Value));
+
+    // Rack safe shutdown output pin
+    strcpy(Value, "");
+    GetConfigParam(PATH_CONFIG, "racksdsignalgpiopin", Value);
+    rxsdsignalGPIO = PinToBroadcom(atoi(Value));
+
+    // Rack mains Control output Pin
+    strcpy(Value, "");
+    GetConfigParam(PATH_CONFIG, "rackmainspwrgpiopin", Value);
+    rxmainspwrGPIO = PinToBroadcom(atoi(Value));
+
+    // Turn receivers off to save power?
+    strcpy(Value, "no");
+    GetConfigParam(PATH_CONFIG, "rackpowersave", Value);
+    if (strcmp(Value, "yes") == 0)
+    {
+      rxpowersave = true;
+    }
+
+    // If required read in the power on and off times
+    if (rxpowersave == true)
+    {
+      strcpy(Value, "0");
+      GetConfigParam(PATH_CONFIG, "rackpoweron1", Value);
+      rxpoweron1 = atoi(Value);
+      if ((rxpoweron1 < 0) || (rxpoweron1 > 2359))
+      {
+        rxpoweron1 = 0;
+        system("echo rackpoweron1_in_config_file_out_of_limits >> /home/pi/atv-rptr/logs/error_log.txt");
+      }
+
+      strcpy(Value, "0");
+      GetConfigParam(PATH_CONFIG, "rackpoweroff1", Value);
+      rxpoweroff1 = atoi(Value);
+      if ((rxpoweroff1 < 0) || (rxpoweroff1 > 2359))
+      {
+        rxpoweroff1 = 0;
+        system("echo rackpoweroff1_in_config_file_out_of_limits >> /home/pi/atv-rptr/logs/error_log.txt");
+      }
+
+      strcpy(Value, "0");
+      GetConfigParam(PATH_CONFIG, "rackpoweron2", Value);
+      rxpoweron2 = atoi(Value);
+      if ((rxpoweron2 < 0) || (rxpoweron2 > 2359))
+      {
+        rxpoweron2 = 0;
+        system("echo rackpoweron2_in_config_file_out_of_limits >> /home/pi/atv-rptr/logs/error_log.txt");
+      }
+
+      strcpy(Value, "0");
+      GetConfigParam(PATH_CONFIG, "rackpoweroff2", Value);
+      rxpoweroff2 = atoi(Value);
+      if ((rxpoweroff2 < 0) || (rxpoweroff2 > 2359))
+      {
+        rxpoweroff2 = 0;
+        system("echo rackpoweroff2_in_config_file_out_of_limits >> /home/pi/atv-rptr/logs/error_log.txt");
+      }
+    }
+  }
+
   // Continuous TX or power-saving?
   strcpy(Value, "no");
   GetConfigParam(PATH_CONFIG, "transmitwhennotinuse", Value);
@@ -1008,7 +1083,7 @@ void setUpGPIO()
         if (fpsdGPIO == PinToBroadcom(pin))
         {
           pin_in_use = true;
-          snprintf(pinfunction_pri, 62, "Shutdown Button Pin");
+          snprintf(pinfunction_pri, 62, "Controller Shutdown Button");
         }
       }
       else       // pin already in use
@@ -1016,7 +1091,70 @@ void setUpGPIO()
         if (fpsdGPIO == PinToBroadcom(pin))
         {
           pin_conflict = true;
-          snprintf(pinfunction_sec, 62, "Shutdown Button Pin");
+          snprintf(pinfunction_sec, 62, "Controller Shutdown Button");
+        }
+      }
+    }
+
+    // Rack Shutdown button GPIO
+    if (rackmainscontrol == true)
+    {
+      if (pin_in_use == false)
+      {
+        if (rxsdbuttonGPIO == PinToBroadcom(pin))
+        {
+          pin_in_use = true;
+          snprintf(pinfunction_pri, 62, "Rack Shutdown Button");
+        }
+      }
+      else       // pin already in use
+      {
+        if (rxsdbuttonGPIO == PinToBroadcom(pin))
+        {
+          pin_conflict = true;
+          snprintf(pinfunction_sec, 62, "Rack Shutdown Button");
+        }
+      }
+    }
+
+    // Rack Safe Shutdown Signal GPIO
+    if (rackmainscontrol == true)
+    {
+      if (pin_in_use == false)
+      {
+        if (rxsdsignalGPIO == PinToBroadcom(pin))
+        {
+          pin_in_use = true;
+          snprintf(pinfunction_pri, 62, "Rack safe Shutdown Signal");
+        }
+      }
+      else       // pin already in use
+      {
+        if (rxsdsignalGPIO == PinToBroadcom(pin))
+        {
+          pin_conflict = true;
+          snprintf(pinfunction_sec, 62, "Rack safe Shutdown Signal");
+        }
+      }
+    }
+
+    // Rack Mains Shutdown Control Signal GPIO
+    if (rackmainscontrol == true)
+    {
+      if (pin_in_use == false)
+      {
+        if (rxmainspwrGPIO == PinToBroadcom(pin))
+        {
+          pin_in_use = true;
+          snprintf(pinfunction_pri, 62, "Rack Mains Shutdown Control Signal");
+        }
+      }
+      else       // pin already in use
+      {
+        if (rxmainspwrGPIO == PinToBroadcom(pin))
+        {
+          pin_conflict = true;
+          snprintf(pinfunction_sec, 62, "Rack Mains Shutdown Control Signal");
         }
       }
     }
@@ -1111,6 +1249,25 @@ void setUpGPIO()
     {
       fpsdenabled = false;
     }
+  }
+
+  // Set receiver shutdown button GPIO as an input
+  // and mains power and shutdown signals to off
+  if (rxpowersave == true)
+  {
+    set_mode(localGPIO, rxsdbuttonGPIO, 0);
+
+    // read it to check that it is not low.  If it is, disable it now
+    if (gpio_read(localGPIO, rxsdbuttonGPIO) != 1)
+    {
+      rxpowersave = false;
+    }
+
+    set_mode(localGPIO, rxsdsignalGPIO, 1);
+    gpio_write(localGPIO, rxsdsignalGPIO, 1);
+
+    set_mode(localGPIO, rxmainspwrGPIO, 1);
+    gpio_write(localGPIO, rxmainspwrGPIO, 0);
   }
 
   // If GPIO-switched video switching, set the outputs and set to low
@@ -1370,7 +1527,7 @@ void *Show_Ident(void * arg)
       tm = *gmtime(&t);
       if (tm.tm_min != previous_minute)
       {
-        printf("Log Timespamp: %d-%02d-%02d %02d:%02d:%02d UTC\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+        printf("Log Timestamp: %d-%02d-%02d %02d:%02d:%02d UTC\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
         previous_minute = tm.tm_min;
       }
     }
