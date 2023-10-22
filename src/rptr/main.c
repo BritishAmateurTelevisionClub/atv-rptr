@@ -740,6 +740,24 @@ void read_config_file()
   }
   if ((carouselscenes >= 10) && (carouselscenes <= 99))
   {
+    for (i = 1; i <= 9; i++)
+    {
+
+      // Carousel scene media type
+      snprintf(Param, 127, "carousel0%dmediatype", i);
+      GetConfigParam(PATH_CONFIG, Param, carouselmediatype[i]);
+
+      // Carousel scene file name (or input number)
+      snprintf(Param, 127, "carousel0%dfile", i);
+      GetConfigParam(PATH_CONFIG, Param, carouselfile[i]);
+
+      // Carousel scene duration
+      strcpy(Value, "");
+      snprintf(Param, 127, "carousel0%dmediaduration", i);
+      GetConfigParam(PATH_CONFIG, Param, Value);
+      carouselmediaduration[i] = atoi(Value);
+    }
+
     for (i = 10; i <= carouselscenes; i++)
     {
 

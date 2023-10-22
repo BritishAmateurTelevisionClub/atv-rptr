@@ -1,3 +1,6 @@
+202310220
+Bugfix more than 9 carousel scenes
+
 202302110
 Add time and button-based rack shutdown
 
