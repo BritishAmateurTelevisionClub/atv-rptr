@@ -1,3 +1,6 @@
+202311021
+Back-up and restore media files on update if requested
+
 202311020
 Add padding to audio CW ident to prevent corruption during switching
 Set pull-ups on the controller and rack shutdown button GPIOs

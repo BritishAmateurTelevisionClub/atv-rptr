@@ -122,12 +122,16 @@ rm -rf "$PATHUBACKUP"
 # Create a folder for user configs
 mkdir "$PATHUBACKUP" >/dev/null 2>/dev/null
 
+# Make a safe copy of the old config file
 if [[ "$KEEPCONFIG" == "true" ]]; then
   # Make a safe copy of repeater_config.txt
   cp -f -r "$PATHCONFIG"/repeater_config.txt "$PATHUBACKUP"/repeater_config.txt
 else
   cp -f -r "$PATHCONFIG"/repeater_config.txt "$PATHCONFIG"/pre_update_repeater_config.txt
 fi
+
+# Make a safe copy of the old user images
+cp -f -r /home/pi/atv-rptr/media "$PATHUBACKUP"/media
 
 # Note previous version number
 cp -f -r /home/pi/atv-rptr/config/installed_version.txt "$PATHUBACKUP"/prev_installed_version.txt
@@ -224,6 +228,12 @@ DisplayUpdateMsg "Step 8 of 10\nRestoring Config\n\nXXXXXXXX--"
 if [[ "$KEEPCONFIG" == "true" ]]; then
   # Restore repeater_config.txt
   cp -f -r "$PATHUBACKUP"/repeater_config.txt "$PATHCONFIG"/repeater_config.txt
+fi
+
+if [[ "$KEEPCONFIG" == "true" ]]; then
+  # Restore images
+  rm -r /home/pi/atv-rptr/media
+  cp -f -r "$PATHUBACKUP"/media /home/pi/atv-rptr/media
 fi
 
 # Restore version info
