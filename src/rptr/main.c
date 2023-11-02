@@ -69,6 +69,7 @@ void read_config_file();
 void setUpGPIO();
 void update_status_screen();
 void fbiThenKill(char *PathImageFile);
+uint16_t IdentLength();
 void *Show_Ident(void * arg);
 void *Show_K_Carousel(void * arg);
 void Seti2cAudioSwitch(int bitv[8]);
@@ -1257,10 +1258,11 @@ void setUpGPIO()
   set_mode(localGPIO, pttGPIO, 1);
   gpio_write(localGPIO, pttGPIO, 0);
 
-  // Set shutdown button GPIO as an input
+  // Set shutdown button GPIO as an input with pull-up
   if (fpsdenabled == true)
   {
     set_mode(localGPIO, fpsdGPIO, 0);
+    set_pull_up_down(localGPIO, fpsdGPIO, PI_PUD_UP);
 
     // read it to check that it is not low.  If it is, disable it now
     if (gpio_read(localGPIO, fpsdGPIO) != 1)
@@ -1269,11 +1271,12 @@ void setUpGPIO()
     }
   }
 
-  // Set receiver shutdown button GPIO as an input
+  // Set receiver shutdown button GPIO as an input with pull-up
   // and mains power and shutdown signals to off
   if (rxpowersave == true)
   {
     set_mode(localGPIO, rxsdbuttonGPIO, 0);
+    set_pull_up_down(localGPIO, rxsdbuttonGPIO, PI_PUD_UP);
 
     // read it to check that it is not low.  If it is, disable it now
     if (gpio_read(localGPIO, rxsdbuttonGPIO) != 1)
@@ -1496,12 +1499,42 @@ void fbiThenKill(char *PathImageFile)
 }
 
 
+uint16_t IdentLength()  // Returns the length of the ident audio file in ms
+{
+  FILE *fp;
+  char length[15];
+  uint16_t lengthms = 0;
+
+  /* Open the command for reading. */
+  fp = popen("soxi -D /home/pi/tmp/ident.wav", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(length, 14, fp) != NULL)
+  {
+    printf("%s", length);
+  }
+
+  /* close */
+  pclose(fp);
+
+  lengthms = (uint16_t)(1000.0 * atof(length));
+
+  printf("Length = %d ms\n", lengthms);
+  return lengthms;
+}
+
+
 void *Show_Ident(void * arg)
 {
   uint64_t last_ident;
   uint64_t ident_required;
   uint64_t ident_finish;
   uint64_t quiet_hours_check;
+  uint32_t identduration;
   char identlevelcommand[127];
   char identplaycommand[127];
   int newi2caudiostatus[8];
@@ -1512,9 +1545,19 @@ void *Show_Ident(void * arg)
   struct tm tm;
   int previous_minute = 0;
 
+  // Check the length of the Ident
+  if (identcwduration >= 1000 * identmediaduration)
+  {
+    identduration = identcwduration;
+  }
+  else
+  {
+    identduration = 1000 * identmediaduration;
+  }
+
   last_ident = monotonic_ms();
   ident_required = last_ident  + identinterval * 1000;
-  ident_finish = last_ident + (identinterval + identmediaduration) * 1000 + 2000;  // Add 2000 ms for approx process time
+  ident_finish = last_ident + (identinterval * 1000) + identduration + 2000;  // Add 2000 ms for approx process time
   printf("Starting Ident Thread.  Ident Interval = %d\n", identinterval);
   quiet_hours_check = monotonic_ms() + 1000;
   int refresh_status_second_count = 0;
@@ -1557,7 +1600,7 @@ void *Show_Ident(void * arg)
       last_ident = ident_required;
       ident_required = last_ident + identinterval * 1000;
 
-      // Check that ident video is to be displayed
+      // Check that ident video or caption is to be displayed
       if ((strcmp(identmediafile, "none") != 0) && (strcmp(identmediatype, "none") != 0))
       {
         // kill vlc?
@@ -1576,6 +1619,7 @@ void *Show_Ident(void * arg)
       // Play the audio file if required
       if (identcwaudio == true)
       {
+        printf("Starting Ident Audio\n");
         if (audiooutcard == 1)                    // RPi Audio Jack
         {
           snprintf(identlevelcommand, 127, "amixer -c 1  -- sset Headphone Playback Volume %d%% >/dev/null 2>/dev/null", identcwlevel);
@@ -1599,11 +1643,8 @@ void *Show_Ident(void * arg)
           usleep(200000); 
           snprintf(identplaycommand, 127, "aplay -D plughw:CARD=b1,DEV=0 %s >/dev/null 2>/dev/null &", identcwfile);
           system (identplaycommand);
-
-          // Reduce playback volume for keep-alive noise
-          snprintf(identlevelcommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", audiokeepalivelevel);
-          system (identlevelcommand);
         }
+
         if ((currenti2caudiostatus[0] == 0) && (strcmp(audioswitch, "i2c") == 0))  // i2c audio req for ident
         {
           i2caudioswitchforident = true;
@@ -1620,12 +1661,13 @@ void *Show_Ident(void * arg)
       PTTEvent(5);
 
       // Now set the exact ident finish time
-      ident_finish = monotonic_ms() + identmediaduration * 1000;  // Sets the exact ident finish time
+      ident_finish = monotonic_ms() + identduration;  // Sets the exact ident finish time
     }
 
     if (monotonic_ms() > ident_finish)
     {
-      ident_finish = ident_required + identmediaduration * 1000 + 2000;  // Set approx ident finish time in the future
+      printf("Stopping Ident Audio\n");
+      ident_finish = ident_required + identduration + 2000;  // Set approx ident finish time in the future
 
       ident_active = false;
 
@@ -1648,11 +1690,28 @@ void *Show_Ident(void * arg)
         Select_HDMI_Switch(inputAfterIdent);        
       }
 
+      // Reduce playback volume back to level for keep-alive noise if required
+      if (audiooutcard == 0)                    // HDMI Audio
+      {
+        snprintf(identlevelcommand, 127, "amixer -c 0  -- sset HDMI Playback Volume %d%% >/dev/null 2>/dev/null", audiokeepalivelevel);
+        system (identlevelcommand);
+      }
+
       // Turn off i2c audio for ident if required
       if (i2caudioswitchforident == true)
       {
         newi2caudiostatus[0] = 0;
         Seti2cAudioSwitch(newi2caudiostatus);
+      }
+
+      // input may have dropped during ident so make sure carousel runs
+      if (inputAfterIdent == 0)  
+      {
+        run_carousel = true;
+        if (carousel_active == false)
+        {
+          DisplayK();
+        }
       }
     }
     usleep(100000);
@@ -1674,7 +1733,7 @@ void *Show_K_Carousel(void * arg)
 
   printf("Entering the KCarousel thread\n");
   strcpy(StatusForConfigDisplay, "Displaying the K");
-
+  carousel_active = true;
   // Display the K initially
   if ((ident_active == false) && (StatusScreenOveride == false))
   {
@@ -1854,8 +1913,9 @@ void *Show_K_Carousel(void * arg)
       pastendoffirstcarousel = true;
     }
   }
+  carousel_active = false;
   strcpy(StatusForConfigDisplay, "Exiting the Carousel");
-  printf("EXITing the KCarousel thread\n");
+  printf("Exiting the KCarousel thread\n");
 
   return NULL;
 }
@@ -2465,6 +2525,9 @@ int main(int argc, char *argv[])
 
   setUpGPIO();
   printf("Initialising the Status Screen\n");
+
+  // Check the ident length
+  identcwduration = IdentLength();
 
   initScreen();
 

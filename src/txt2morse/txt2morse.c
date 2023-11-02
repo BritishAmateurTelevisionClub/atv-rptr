@@ -250,44 +250,55 @@ int main(int argc, char *argv[])
 	  exit(EXIT_FAILURE);
      }
 
-     /* Make lookup table to access morse codes through ASCII values */
-     /* First make empty ASCII entries point to space character, which
-	is last value of morse_table */
-     for (i = 0; i <= MAX_ASCII; ++i) {
-	  ascii_char = morse_table[MAX_CHARS][0];
-     }
-     for (i = 0; i < MAX_CHARS; ++i) {
-	  ascii_char = morse_table[i][0];
-	  ascii_table[ascii_char] = i;
-     }
-  
-     /* Read in characters, look up series of dots and dashes in sign
-	table, output appropriate format for each dot, dash, or space. */
-     while ((ascii_char = fgetc(infile)) != EOF) {
-	  /* Ensure valid input */
-	  if (ascii_char > MAX_ASCII) {
-	       break;
-	  }
-	  /* Ignore newlines, no processing needed */
-	  else if (ascii_char == '\n') {
-	       continue;
-	  }
-	  /* Convert lowercase to uppercase */
-	  else if (ascii_char >= 'a' && ascii_char <= 'z') {
-	       ascii_char -= lower_upper_ascii_difference; 
-	  }
-    
-	  /* Get morse output patterns for each component character from
-	     lookup table, so 'A' -> DOT, DASH -> ". ---" */
-	  morse_table_index = ascii_table[ascii_char];
-	  signal_code = &morse_table[morse_table_index][1];
-	  write_morse_char(outfile, waveform, frequency,
-			   unit_duration, signal_code);
-     }
+  // Make lookup table to access morse codes through ASCII values
+     
+  // First make empty ASCII entries point to space character, which	is last value of morse_table
+  for (i = 0; i <= MAX_ASCII; ++i) 
+  {
+    ascii_char = morse_table[MAX_CHARS][0];
+  }
 
-     fclose(infile);
-     wavfile_close(outfile);
-     return (0);
+  for (i = 0; i < MAX_CHARS; ++i)
+  {
+	ascii_char = morse_table[i][0];
+	ascii_table[ascii_char] = i;
+  }
+
+  // Put in a leading character space to hide audio switch glitch
+  morse_table_index = ascii_table[' '];
+  signal_code = &morse_table[morse_table_index][1];
+  write_morse_char(outfile, waveform, frequency, unit_duration, signal_code);
+  
+  // Read in characters, look up series of dots and dashes in sign table, output appropriate format for each dot, dash, or space
+  while ((ascii_char = fgetc(infile)) != EOF)
+  {
+	if (ascii_char > MAX_ASCII)  // Ensure valid input
+    {
+	  break;
+	}
+	else if (ascii_char == '\n') // Ignore newlines, no processing needed
+    {
+	  continue;
+	}
+	else if (ascii_char >= 'a' && ascii_char <= 'z') // Convert lowercase to uppercase
+    {
+	  ascii_char -= lower_upper_ascii_difference; 
+	}
+    
+    // Get morse output patterns for each component character from lookup table, so 'A' -> DOT, DASH -> ". ---"
+    morse_table_index = ascii_table[ascii_char];
+    signal_code = &morse_table[morse_table_index][1];
+    write_morse_char(outfile, waveform, frequency, unit_duration, signal_code);
+  }
+
+  // Put in a trailing character space to hide audio switch glitch
+  morse_table_index = ascii_table[' '];
+  signal_code = &morse_table[morse_table_index][1];
+  write_morse_char(outfile, waveform, frequency, unit_duration, signal_code);
+
+  fclose(infile);
+  wavfile_close(outfile);
+  return (0);
 }
 
 
@@ -317,24 +328,34 @@ void write_morse_char(FILE *outfile, short waveform[],
 		      double frequency, double unit_duration,
 		      int signal_code[])
 {
-     int i;
-     for (i = 0; signal_code[i] != ENDCODE; ++i) {
-	  if (signal_code[i] == WORD_SPC) {
-	       /* Write word space */
-	       write_silence(outfile, waveform, 6 * unit_duration);
-	       break;
-	  } else if (signal_code[i] == DOT) {
-	       /* Write dot */
-	       write_tone(outfile, waveform, frequency, unit_duration);
-	  } else {
-	       /* Write dash */
-	       write_tone(outfile, waveform, frequency, 3 * unit_duration);
-	  }
-	  /* Write inter-signal space */
-	  write_silence(outfile, waveform, unit_duration);
-     }
-     /* Write inter-character space */
-     write_silence(outfile, waveform, 2 * unit_duration);
-     return;
+  int i;
+
+  for (i = 0; signal_code[i] != ENDCODE; ++i)
+  {
+	if (signal_code[i] == WORD_SPC)
+    {
+	  /* Write word space */
+	  write_silence(outfile, waveform, 6 * unit_duration);
+	  break;
+	}
+    else if (signal_code[i] == DOT)
+    {
+	  /* Write dot */
+	  write_tone(outfile, waveform, frequency, unit_duration);
+	}
+    else
+    {
+	  /* Write dash */
+	  write_tone(outfile, waveform, frequency, 3 * unit_duration);
+	}
+
+	/* Write inter-signal space */
+	write_silence(outfile, waveform, unit_duration);
+  }
+
+  /* Write inter-character space */
+  write_silence(outfile, waveform, 2 * unit_duration);
+
+  return;
 }
   

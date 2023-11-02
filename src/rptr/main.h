@@ -86,6 +86,7 @@ int identinterval = 900;                           // Interval between start of 
 int identmediaduration = 5;                        // seconds
 bool identcwaudio = false;                         //
 int identcwlevel = 100;                            // percentage
+uint16_t identcwduration = 1000;                   // in milliseconds
 int kmediaduration = 3;                            // seconds
 bool kcwaudio = false;                             //
 int kcwlevel = 100;                                // percentage
