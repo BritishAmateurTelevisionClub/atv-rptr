@@ -1,3 +1,6 @@
+202311150
+Add option for ATEM Mini as HDMI Switch
+
 202311021
 Back-up and restore media files on update if requested
 

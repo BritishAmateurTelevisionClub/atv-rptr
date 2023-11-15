@@ -127,6 +127,10 @@ sudo apt-get install -y i2c-tools
 SUCCESS=$?; BuildLogMsg $SUCCESS "i2c-tools"
 sudo apt-get install -y dos2unix
 SUCCESS=$?; BuildLogMsg $SUCCESS "dos2unix"
+sudo apt-get install -y expect
+SUCCESS=$?; BuildLogMsg $SUCCESS "expect"
+sudo apt-get install -y telnet
+SUCCESS=$?; BuildLogMsg $SUCCESS "telnet"
 
 cd /home/pi
 

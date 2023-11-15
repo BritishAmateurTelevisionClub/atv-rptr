@@ -186,7 +186,7 @@ talkbackaudioi2cbit=7
 
 # announcemediatype determines the player used
 
-# Switcher can use "ir" or "gpio" "html" or "i2c"
+# Video Switcher can use "ir", "gpio", "html", "i2c" or "atem"
 # IR uses a TX on GPIO pin 12
 # GPIO uses pins 36, 37, 38, 33, 31, 29, 23, 24.  Can be enabled with ir or i2c
 # i2c uses FMS6501A on Output channel 1
@@ -305,5 +305,20 @@ output7audioi2cbit=7
 input7announcemediatype=jpg
 input7announcemediafile=/home/pi/tmp/input7.jpg
 input7announcemediaduration=3
+
+# ATEM Switching instructions
+atemip=192.168.2.148
+atemoutput=0
+atemprogram=1
+atempreview=2
+output0atem=1
+output1atem=2
+output2atem=3
+output3atem=4
+output4atem=5
+output5atem=6
+output6atem=7
+output7atem=8
+outputmultiatem=10
 
 

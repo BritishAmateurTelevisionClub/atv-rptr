@@ -65,6 +65,7 @@ void SetConfigParam(char *PathConfigFile, char *Param, char *Value);
 void strcpyn(char *outstring, char *instring, int n);
 void trimTrailing(char * str);
 void log_rptr_error(char *errorstring);
+void CheckConfigFile();
 void read_config_file();
 void setUpGPIO();
 void update_status_screen();
@@ -286,6 +287,66 @@ void log_rptr_error(char *errorstring)
   //printf("\n%s\n\n", echo_command);
   system(echo_command);
 }
+
+/***************************************************************************//**
+ * @brief Checks to see if new entries exist in the Config file
+ *        and adds them if required
+ *
+ * @param None
+ *
+ * @return none
+ * 
+*******************************************************************************/
+
+void CheckConfigFile()
+{
+  char shell_command[255];
+  FILE *fp;
+  int r;
+
+  sprintf(shell_command, "grep -q 'atemip=' %s", PATH_CONFIG);
+  fp = popen(shell_command, "r");
+  r = pclose(fp);
+
+  if (WEXITSTATUS(r) != 0)
+  {
+    printf("ATEM config values not detected\n");
+    printf("Adding 14 parameters to config file\n");
+
+    sprintf(shell_command, "echo >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo \\# ATEM Switching instructions >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo atemip=192.168.2.148 >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo atemoutput=0 >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo atemprogram=1 >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo atempreview=2 >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo output0atem=1 >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo output1atem=2 >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo output2atem=3 >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo output3atem=4 >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo output4atem=5 >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo output5atem=6 >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo output6atem=7 >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo output7atem=8 >> %s", PATH_CONFIG);
+    system(shell_command);
+    sprintf(shell_command, "echo outputmultiatem=10 >> %s", PATH_CONFIG);
+    system(shell_command);
+  }
+}
+
+
 
 /***************************************************************************//**
  * @brief Reads all the parameters in the saved config file to the global variables
@@ -879,6 +940,31 @@ void read_config_file()
     cascadedswitches = true;
   }
 
+  // ATEM IP address
+  strcpy(Value, "");
+  GetConfigParam(PATH_CONFIG, "atemip", Value);
+  strcpy(atemip, Value);
+
+  // ATEM Video Output
+  strcpy(Value, "");
+  GetConfigParam(PATH_CONFIG, "atemoutput", Value);
+  strcpy(atemoutput, Value);
+
+  // ATEM Program Output
+  strcpy(Value, "");
+  GetConfigParam(PATH_CONFIG, "atemprogram", Value);
+  strcpy(atemprogram, Value);
+
+  // ATEM Preview Output
+  strcpy(Value, "");
+  GetConfigParam(PATH_CONFIG, "atempreview", Value);
+  strcpy(atempreview, Value);
+
+  // ATEM Multiview input
+  strcpy(Value, "");
+  GetConfigParam(PATH_CONFIG, "outputmultiatem", Value);
+  strcpy(outputmultiatem, Value);
+
   for(i = 0 ; i <= availableinputs ; i++)
   {
     // Input Name
@@ -908,6 +994,11 @@ void read_config_file()
     {
       outputaudioi2cbit[i] = 0;
     }
+
+    // ATEM Switch configuration
+    strcpy(Value, "");
+    snprintf(Param, 127, "output%datem", i);
+    GetConfigParam(PATH_CONFIG, Param, outputatem[i]);
 
     if (i >= 1)  // All inputs except the controller input
     {
@@ -2073,6 +2164,33 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
     }
   }
 
+  if (strcmp(outputswitchcontrol, "atem") == 0)                 // Network controlled ATEM
+  {
+    if ((selection >= 0)  && (selection <= availableinputs))    // Normal input
+    {
+      snprintf(SystemCommand, 254, "/home/pi/atv-rptr/scripts/atem_switch.sh %s %s %s", atemip, atemoutput, outputatem[selection]);
+      printf("Network Command: %s\n", SystemCommand);
+      system(SystemCommand);
+      snprintf(SystemCommand, 254, "/home/pi/atv-rptr/scripts/atem_switch.sh %s %s %s", atemip, atemprogram, outputatem[selection]);
+      printf("Network Command: %s\n", SystemCommand);
+      system(SystemCommand);
+    }
+    else                                                         // Quad View requested - use MultiView set preview to 1, and program to 2
+    {
+      snprintf(SystemCommand, 254, "/home/pi/atv-rptr/scripts/atem_switch.sh %s %s %s", atemip, atempreview, outputatem[1]);
+      printf("Network Command: %s\n", SystemCommand);
+      system(SystemCommand);
+      snprintf(SystemCommand, 254, "/home/pi/atv-rptr/scripts/atem_switch.sh %s %s %s", atemip, atemprogram, outputatem[2]);
+      printf("Network Command: %s\n", SystemCommand);
+      system(SystemCommand);
+      snprintf(SystemCommand, 254, "/home/pi/atv-rptr/scripts/atem_switch.sh %s %s %s", atemip, atemoutput, "10");
+      printf("Network Command: %s\n", SystemCommand);
+      system(SystemCommand);
+      snprintf(SystemCommand, 254, "/home/pi/atv-rptr/scripts/atem_switch.sh %s %s %s", atemip, atemprogram, "10");
+      printf("Network Command: %s\n", SystemCommand);
+      system(SystemCommand);
+    }
+  }
 
   // Audio switching code
   if (strcmp(audioswitch, "i2c") == 0)
@@ -2508,6 +2626,8 @@ int main(int argc, char *argv[])
 
   printf("BATC Repeater Controller Starting Up\n");
   printf("Reading the Config File\n");
+
+  CheckConfigFile();
 
   read_config_file();
 

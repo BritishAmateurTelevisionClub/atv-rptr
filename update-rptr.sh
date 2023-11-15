@@ -161,6 +161,10 @@ sudo apt-get install -y i2c-tools
 SUCCESS=$?; UpdateLogMsg $SUCCESS "i2c-tools"
 sudo apt-get install -y dos2unix
 SUCCESS=$?; UpdateLogMsg $SUCCESS "dos2unix"
+sudo apt-get install -y expect
+SUCCESS=$?; BuildLogMsg $SUCCESS "expect"
+sudo apt-get install -y telnet
+SUCCESS=$?; BuildLogMsg $SUCCESS "telnet"
 
 # ---------- Update atv-rptr -----------
 

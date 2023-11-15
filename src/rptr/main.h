@@ -41,6 +41,12 @@ char carouselmediatype[100][31];                   // jpg, mp4 or source
 char carouselfile[100][63];                        // full path
 char announcemediatype[8][31];                     // Announce for each input
 char announcemediafile[8][63];                     // Announce for each input
+char atemip[63];                                   // IP Address of ATEM Switch
+char atemoutput[31];                               // output channel for ATEM Switch
+char atemprogram[31];                              // program output channel for ATEM Switch
+char atempreview[31];                              // preview for ATEM Switch
+char outputatem[8][31];                           // input channels for ATEM Switch
+char outputmultiatem[31];                          // multiview input channel for ATEM Switch
 
 // Derived Config File Parameters
 int audiooutcard;                                  // normally 0 hdmi, 1, jack, 2 usb
