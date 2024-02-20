@@ -234,6 +234,16 @@ if [[ "$KEEPCONFIG" == "true" ]]; then
   cp -f -r "$PATHUBACKUP"/repeater_config.txt "$PATHCONFIG"/repeater_config.txt
 fi
 
+# Add controller talkback audio setting to config file if not included  202402190
+if ! grep -q controllertalkbackaudio= "$PATHCONFIG"/repeater_config.txt; then
+  # File needs updating
+  # Add the new entry and a new line
+  echo >> "$PATHCONFIG"/repeater_config.txt
+  echo '# Talkback audio on DTMF input can also be output on the controller (k/cw ident) channel' >> "$PATHCONFIG"/repeater_config.txt
+  echo '# Volume is set by dtmfaudiogain above' >> "$PATHCONFIG"/repeater_config.txt
+  echo 'controllertalkbackaudio=off' >> "$PATHCONFIG"/repeater_config.txt
+fi
+
 if [[ "$KEEPCONFIG" == "true" ]]; then
   # Restore images
   rm -r /home/pi/atv-rptr/media

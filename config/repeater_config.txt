@@ -177,9 +177,13 @@ carousel03mediaduration=10
 audioswitch=hdmi
 audioi2caddress=7
 
-# talkback (144.75) audio can be turned on or off using the MCP23008 i2c switcher
+# Analogue talkback audio (144.75) can be turned on or off using the MCP23008 i2c switcher
 talkbackaudio=on
 talkbackaudioi2cbit=7
+
+# Talkback audio on DTMF input can also be output on the controller (k/cw ident) audio channel
+# Volume is set by dtmfaudiogain above
+controllertalkbackaudio=on
 
 # Input config
 # Recommended gpio pins for "input active" are 32, 35, 18, 22, 16, 19 and 21

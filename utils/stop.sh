@@ -15,5 +15,9 @@ sudo killall rptr >/dev/null 2>/dev/null
 
 sudo killall speaker-test >/dev/null 2>/dev/null
 
+sudo killall aplay  >/dev/null 2>/dev/null
+
+sudo rm /home/pi/audio.raw >/dev/null 2>/dev/null
+
 exit
 
