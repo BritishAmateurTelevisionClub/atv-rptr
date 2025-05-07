@@ -74,6 +74,7 @@ uint16_t IdentLength();
 void *Show_Ident(void * arg);
 void *Show_K_Carousel(void * arg);
 void Seti2cAudioSwitch(int bitv[8]);
+void sendIRcode(char *inputCode);
 void Select_HDMI_Switch(int selection);
 int Switchto(int new_output);
 void DisplayK();
@@ -2046,13 +2047,51 @@ void Seti2cAudioSwitch(int bitv[8])
   }
 }
 
+
+void sendIRcode(char *inputCode)
+{
+  char IRCommandStub[63];
+  char SystemCommand[255];
+
+  if (inputCode[0] == '2')      // Daisy-chained switches
+  {
+    // select the appropriate input on the upstream (first, quad) switch
+    // so switch to the upstream IR sender
+    gpio_write(localGPIO, daisychainirselectgpio, 1);
+    usleep(100000);     // Let switch settle
+
+    snprintf(IRCommandStub, 30, "%s", inputCode + 1);     // start at the 2nd character
+    printf("Upstream (quad) IRCommandStub = -%s-\n", IRCommandStub);
+    snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", IRCommandStub);
+    system(SystemCommand);
+
+    // now switch to the downstream (second, not quad) switch
+    gpio_write(localGPIO, daisychainirselectgpio, 0);
+    usleep(100000);     // Let switch settle
+
+    // Select daisy chain input on downstream switch
+    printf("Downstream IRCommandStub = -%s-\n", output2ndhdmicode);
+    snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", output2ndhdmicode);
+    system(SystemCommand);
+  }
+  else                                  // Not daisy-chained switches
+  {
+    snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", inputCode);
+    printf("Downstream or only IRCommandStub = -%s-\n", inputCode);
+    system(SystemCommand);
+  }
+}
+
+
 void Select_HDMI_Switch(int selection)        // selection is between -1 (quad), 0 and availableinputs
 {
   int i;
   int thisGPIOlevel;
   char SystemCommand[255];
-  char IRCommandStub[63];
+//  char IRCommandStub[63];
   int bitv[8];
+  bool commas = false;
+  char IRcode[63];
 
   if ((selection < -1)  || (selection > availableinputs))
   {
@@ -2083,67 +2122,109 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
     // RS2323 code here
   }
 
-  if (strcmp(outputswitchcontrol, "ir") == 0)             // ir controlled HDMI switch
+  if (strcmp(outputswitchcontrol, "ir") == 0)             // IR controlled HDMI switch
   {
-    if ((selection >= 0)  && (selection <= availableinputs))
+    // First look to see if multiple key-presses (separated by commas) might be required
+    for (i = 1; i < strlen(outputcode[selection]); i++)
     {
-      if (outputcode[selection][0] == '2')      // Daisy-chained switches
+      if (outputcode[selection][i] == ',')
       {
-        // select the appropriate input on the upstream (first, quad) switch
-        // so switch to the upstream IR sender
-        gpio_write(localGPIO, daisychainirselectgpio, 1);
-        usleep(100000);     // Let switch settle
-
-        snprintf(IRCommandStub, 30, "%s", outputcode[selection] + 1);     // start at the 2nd character
-        printf("Upstream (quad) IRCommandStub = -%s-\n", IRCommandStub);
-        snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", IRCommandStub);
-        system(SystemCommand);
-
-        // now switch to the downstream (second, not quad) switch
-        gpio_write(localGPIO, daisychainirselectgpio, 0);
-        usleep(100000);     // Let switch settle
-
-        // Select daisy chain input on downstream switch
-        printf("Downstream IRCommandStub = -%s-\n", output2ndhdmicode);
-        snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", output2ndhdmicode);
-        system(SystemCommand);
-      }
-      else                                  // Not daisy-chained switches
-      {
-        snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputcode[selection]);
-        printf("Downstream or only IRCommandStub = -%s-\n", outputcode[selection]);
-        system(SystemCommand);
+        commas = true;
       }
     }
-    else if (selection == -1)                          // Quad View requested
+
+    if (commas == false)
     {
-      if (outputhdmiquadcode[0] == '2')     // Daisy-chained switches for quad
+      if ((selection >= 0)  && (selection <= availableinputs))  // Normal input (not quad)
       {
-        // select the quad on the upstream (first, quad) switch
-        // so switch to the upstream IR sender
-        gpio_write(localGPIO, daisychainirselectgpio, 1);
-        usleep(100000);     // Let switch settle
-
-        snprintf(IRCommandStub, 30, "%s", outputhdmiquadcode + 1);   // start at the 2nd character
-        printf("Upstream (quad) IRCommandStub = -%s-\n", IRCommandStub);
-        snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", IRCommandStub);
-        system(SystemCommand);
-
-        // now switch to the downstream (second, not quad) switch
-        gpio_write(localGPIO, daisychainirselectgpio, 0);
-        usleep(100000);     // Let switch settle
-        usleep(100000);     // Really Let switch settle
-
-        // Select daisy chain input on downstream switch
-        snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", output2ndhdmicode);
-        printf("Downstream IRCommandStub = -%s-\n", output2ndhdmicode);
-        system(SystemCommand);
+        sendIRcode(outputcode[selection]);
       }
-      else                                // Not daisy-chained switches
+      else if (selection == -1)                          // Quad View requested
       {
-        snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputhdmiquadcode);
-        printf("Downstream or only IRCommandStub = -%s-\n", outputhdmiquadcode);
-        system(SystemCommand);
+        sendIRcode(outputhdmiquadcode);
+      }
+    }
+    else // Handle Command string that includes commas
+    {
+      if ((selection >= 0)  && (selection <= availableinputs))  // Normal input (not quad)
+      {
+        printf("IR Command with commas:-%s-\n", outputcode[selection]);
+
+        // Parse the IR Command
+        i = 0;  // character of input string
+
+        strncpy(IRcode, "", sizeof(IRcode));
+
+        while (i < strlen(outputcode[selection]))
+        {
+          if (outputcode[selection][i] != ',')   // not a comma
+          {
+            IRcode[strlen(IRcode)] = outputcode[selection][i];
+            IRcode[strlen(IRcode) + 1] = '\0';
+
+            // send the code if we've reached the end of the string
+            if (i == strlen(outputcode[selection]) - 1)
+            {
+              printf("Sending code at end %s\n", IRcode);
+              sendIRcode(IRcode);
+            }
+          }
+          else  // it's a comma
+          {
+          if (strlen(IRcode) > 2)
+            {
+              // send the IR code
+              printf("Sending code %s\n", IRcode);
+              sendIRcode(IRcode);
+
+              // null the code for next time
+              strncpy(IRcode, "", sizeof(IRcode));
+            } 
+            printf("Pausing 200 ms\n");
+            usleep (200000);
+          }
+          i = i + 1;
+        }
+      }
+      else if (selection == -1)                          // Quad View requested
+      {
+        printf("IR Command with commas:-%s-\n", outputhdmiquadcode);
+
+        // Parse the IR Command
+        i = 0;  // character of input string
+
+        strncpy(IRcode, "", sizeof(IRcode));
+
+        while (i < strlen(outputhdmiquadcode))
+        {
+          if (outputhdmiquadcode[i] != ',')   // not a comma
+          {
+            IRcode[strlen(IRcode)] = outputhdmiquadcode[i];
+            IRcode[strlen(IRcode) + 1] = '\0';
+
+            // send the code if we've reached the end of the string
+            if (i == strlen(outputhdmiquadcode) - 1)
+            {
+              printf("Sending code at end %s\n", IRcode);
+              sendIRcode(IRcode);
+            }
+          }
+          else  // it's a comma
+          {
+          if (strlen(IRcode) > 2)
+            {
+              // send the IR code
+              printf("Sending code %s\n", IRcode);
+              sendIRcode(IRcode);
+
+              // null the code for next time
+              strncpy(IRcode, "", sizeof(IRcode));
+            } 
+            printf("Pausing 200 ms\n");
+            usleep (200000);
+          }
+          i = i + 1;
+        }
       }
     }
   }
