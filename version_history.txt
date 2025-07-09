@@ -1,3 +1,6 @@
+202507090
+Add facility to shutdown Desktop Pi at same time as Controller
+
 202503030
 Handle multiple IR commands separated by commas
 

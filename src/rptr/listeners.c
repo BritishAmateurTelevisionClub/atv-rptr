@@ -137,6 +137,11 @@ void *InputStatusListener(void * arg)
               strcpy(StatusForConfigDisplay, "Rack shut down.  Shutting down controller.");
               gpio_write(localGPIO, rxmainspwrGPIO, 0);
             }
+            // Shut down the Desktop if fitted
+            system("/home/pi/atv-rptr/scripts/desktop_shutdown.sh &");
+
+            // Wait 1 second and then shutdown the controller
+            sleep_ms(1000);
             system("sudo shutdown now");
           }
           else                                         // button high so go back to normal
