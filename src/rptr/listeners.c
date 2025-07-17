@@ -20,7 +20,6 @@
 #include<arpa/inet.h>
 #include<sys/socket.h>
 
-// #include "main.h"
 #include "listeners.h"
 #include "look-ups.h"
 #include "timing.h"
@@ -541,7 +540,6 @@ int PTTEvent(int EventType)
   // 6 End of Ident
   // 7 Check for quiet hours and second half hour (called once per second)
 
-  bool quiet_hours = false;
   bool secondhalfhour = false;
   int utc24time = 0;
   static bool previous_quiet_hours;
@@ -619,12 +617,11 @@ int PTTEvent(int EventType)
           return(1);
         }
         break;
-      case 3:                                 // End of first run of carousel
-                                              // So drop carrier if in quiet hours
-                                              // or transmitwhennotinuse = false
+      case 3:                                 // End of first run of carousel if (transmitwhennotinuse == true)
+                                              // drop carrier if in quiet hours
                                               // or secondhalfhour = true
-         if ((quiet_hours == true)
-          || (transmitwhennotinuse == false) || (secondhalfhour == true))
+
+         if (((quiet_hours == true) ||  (secondhalfhour == true)) && (transmitwhennotinuse == true))
          {
            gpio_write(localGPIO, pttGPIO, 0);
            return(0);
@@ -644,10 +641,10 @@ int PTTEvent(int EventType)
         break;
       case 5:                                  // Start of Ident
                                                // So raise carrier if 
-                                               // secondhalfhour = true or
-                                               // transmitwhennotinuse = false or
-                                               // identduringquiethours = true and quiet_hours == true
-        if ((secondhalfhour == true) || (transmitwhennotinuse == false)
+                                               // secondhalfhour = true and quiet_hours = false
+                                               // OR quiet_hours = true and or identduringquiethours = true
+
+        if (((secondhalfhour == true) && (quiet_hours == false))
          || ((quiet_hours == true) && (identduringquiethours == true)))
         {
           gpio_write(localGPIO, pttGPIO, 1);
@@ -656,14 +653,14 @@ int PTTEvent(int EventType)
         break;
       case 6:                                  // End of Ident
                                                // So drop carrier if 
-                                               // secondhalfhour = true and (inputAfterIdent == 0)
-                                               // or
+                                               // transmitwhennotinuse = false AND
+                                               // secondhalfhour = true and inputAfterIdent == 0
+                                               // OR
                                                // quiet_hours == true and (inputAfterIdent == 0)
-                                               // or
-                                               // transmitwhennotinuse = false and (inputAfterIdent == 0)
-        if (((secondhalfhour == true) && (inputAfterIdent == 0))
-         || ((quiet_hours == true) && (inputAfterIdent == 0))
-         || ((transmitwhennotinuse == false) && (inputAfterIdent == 0)))
+
+        if ((((secondhalfhour == true) && (inputAfterIdent == 0))
+         || ((quiet_hours == true) && (inputAfterIdent == 0)))
+         && (transmitwhennotinuse == false))
         {
           gpio_write(localGPIO, pttGPIO, 0);
           return(0);
@@ -671,6 +668,7 @@ int PTTEvent(int EventType)
         break;
       case 7:                                  // Periodic check for quiet hours and second half hour
                                                // First check if there has been any change
+
         if ((quiet_hours == previous_quiet_hours) && (secondhalfhour == previous_secondhalfhour))
         {
           return(2);

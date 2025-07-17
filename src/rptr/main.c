@@ -1763,6 +1763,10 @@ void *Show_Ident(void * arg)
 
       ident_active = false;
 
+      // Cut PTT
+      PTTEvent(6);
+
+
       // Switch to status display if required
       if (StatusScreenOveride == true)
       {
@@ -1772,9 +1776,6 @@ void *Show_Ident(void * arg)
       else
       {
         printf("Finishing Ident, switching to current input %d\n", inputAfterIdent);
-
-        // Cut PTT if required
-        PTTEvent(6);
 
         // Carousel will refresh on next image
 
@@ -1911,7 +1912,15 @@ void *Show_K_Carousel(void * arg)
   firstCarousel = false;
 
   pastendoffirstcarousel = false;
-  strcpy(StatusForConfigDisplay, "Displaying the Carousel");
+
+  if(quiet_hours == false)
+  {
+    strcpy(StatusForConfigDisplay, "Displaying the Carousel");
+  }
+  else
+  {
+    strcpy(StatusForConfigDisplay, "Rack shut down.  Awaiting restart by time or button");
+  }
 
   while ((run_carousel == true) && (output_overide == false))
   {
@@ -2694,7 +2703,6 @@ int main(int argc, char *argv[])
 {
 
   int i;
-  char SystemCommand[127];
 
   // Catch sigaction and call terminate
   for (i = 0; i < 16; i++)
@@ -2754,8 +2762,7 @@ int main(int argc, char *argv[])
   // If IR controlled, reset the HDMI Switch
   if (strcmp(outputswitchcontrol, "ir") == 0)             // ir controlled HDMI switch
   {
-    snprintf(SystemCommand, 126, "ir-ctl -S %s -d /dev/lirc0", outputhdmiresetcode);
-    system(SystemCommand);
+    sendIRcode(outputhdmiresetcode);
   }
 
   printf("Starting the main repeater controller\n");

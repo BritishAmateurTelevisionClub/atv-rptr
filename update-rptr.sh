@@ -122,12 +122,14 @@ rm -rf "$PATHUBACKUP"
 # Create a folder for user configs
 mkdir "$PATHUBACKUP" >/dev/null 2>/dev/null
 
-# Make a safe copy of the old config file
+# Make a safe copy of the old config file and desktop shutdown file
 if [[ "$KEEPCONFIG" == "true" ]]; then
   # Make a safe copy of repeater_config.txt
   cp -f -r "$PATHCONFIG"/repeater_config.txt "$PATHUBACKUP"/repeater_config.txt
+  cp -f -r /home/pi/atv-rptr/scripts/desktop_shutdown.sh "$PATHUBACKUP"/desktop_shutdown.sh
 else
   cp -f -r "$PATHCONFIG"/repeater_config.txt "$PATHCONFIG"/pre_update_repeater_config.txt
+  cp -f -r /home/pi/atv-rptr/scripts/desktop_shutdown.sh "$PATHUBACKUP"/pre_update_desktop_shutdown.sh
 fi
 
 # Make a safe copy of the old user images
@@ -232,6 +234,7 @@ DisplayUpdateMsg "Step 8 of 10\nRestoring Config\n\nXXXXXXXX--"
 if [[ "$KEEPCONFIG" == "true" ]]; then
   # Restore repeater_config.txt
   cp -f -r "$PATHUBACKUP"/repeater_config.txt "$PATHCONFIG"/repeater_config.txt
+  cp -f -r "$PATHUBACKUP"/desktop_shutdown.sh /home/pi/atv-rptr/scripts/desktop_shutdown.sh 
 fi
 
 # Add controller talkback audio setting to config file if not included  202402190

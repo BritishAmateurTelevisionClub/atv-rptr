@@ -1,3 +1,7 @@
+202507170
+Correct PTT Logic
+Preserve Desktop Pi Shutdown file on update
+
 202507090
 Add facility to shutdown Desktop Pi at same time as Controller
 

@@ -61,6 +61,7 @@ extern int rxpoweron1;
 extern int rxpoweroff1;
 extern int rxpoweron2;
 extern int rxpoweroff2;
+extern bool quiet_hours;
 
 
 #endif /* __LISTENERS_H__ */

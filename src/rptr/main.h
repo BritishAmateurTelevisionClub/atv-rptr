@@ -128,6 +128,7 @@ bool outputwasmultiinputquad = false;              // Used to prevent Announce w
 bool manual_receiver_switch_state = true;          // The last manual-commanded switch state. true = on
 bool manual_receiver_overide = false;              // Set to indicate that the button has been used
 bool initial_start = true;                         // Set to indicate that status screen should be displayed if rack off
+bool quiet_hours = false;                          // Set in listener.c after checks every second
 
 // Display parameters
 int screen_width;                                  // These are defined in the config file
