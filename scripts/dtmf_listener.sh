@@ -119,9 +119,12 @@ else      ## DTMF with talkback audio
         CODE="building"
 
       elif [[ "$DTMF_CODE" == "#" ]]; then                  # Character is hash, so send assembled code string
-        if [[ "$CODE" == "building" ]]; then
-          #echo "Sending Code" "$CODE_TO_SEND"
+        #if [[ "$CODE" == "building" ]]; then
+        if [[ "$CODE" == "building" ]] && [[ "$CODE_TO_SEND" != "" ]]; then
+          echo "Sending Code" "$CODE_TO_SEND"
           echo "$CODE_TO_SEND" > /dev/udp/127.0.0.1/8888
+        else
+          echo "Empty code, nothing sent"
         fi
         CODE="blocked"
 

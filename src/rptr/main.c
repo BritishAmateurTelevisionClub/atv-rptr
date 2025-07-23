@@ -2428,7 +2428,10 @@ int Switchto(int new_output)
 
 void DisplayK()
 {
-  printf("Entered DisplayK\n");
+  printf("Entered DisplayK, cancelling previous kcarousel threads\n");
+  pthread_cancel(thkcarousel);
+  printf("Cancelled previous kcarousel threads\n");
+
   strcpy(StatusForConfigDisplay, "Displaying the K");
 
   printf("Creating the Carousel Thread\n");
@@ -2444,10 +2447,10 @@ int priorityDecision()
   int active_input_count = 0;
   int quadtestinputs = 4;
 
-  printf("previous decision result is %d, entering decision process\n", previous_decision_result);
+  printf("Previous decision result is %d, entering decision process\n", previous_decision_result);
 
   // Record initial state to monitor for changes
-  printf("Setting inputActiveInitialState ");
+  printf("Setting \"inputActiveInitialState\" array: ");
   for (i = 1; i <= availableinputs; i++)
   {
     inputActiveInitialState[i] = inputactive[i];
@@ -2471,6 +2474,7 @@ int priorityDecision()
       }
     }
   }
+  printf("Quad Check Complete\n");
 
   if (active_input_count > 1)                            // Quad to be displayed
   {
@@ -2479,6 +2483,7 @@ int priorityDecision()
   }
   else                                                   // Not the quad                                   
   {
+    printf("Not quad, so check priority\n");
     for (priority_test = 1; priority_test <= 8; priority_test++)
     {
       for (i = 1; i <= availableinputs; i++)

@@ -1,3 +1,7 @@
+202507230
+Prevent creation of multiple carousel switching threads
+Improve DTMF error checking
+
 202507170
 Correct PTT Logic
 Preserve Desktop Pi Shutdown file on update

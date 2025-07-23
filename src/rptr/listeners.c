@@ -394,15 +394,25 @@ void *SocketListener(void * arg)
 			die("recvfrom()");
 		}
 		
-		//print details of the client/peer and the data received
+		// print details of the client/peer and the raw data received
 		printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
 		printf("Data: %s\n" , buf);
 
-        // Strip trailing cr
-        if (strlen(buf) > 1)
+        // Strip line feeds from data
+        int j;
+        for (j = 0; j <= strlen(buf); j++)
         {
-          buf[strlen(buf) - 1] = '\0';  // Strip trailing cr
+          if (buf[j] == 10)
+          {
+            buf[j] = '\0';
+            continue;
+          }
         }
+
+        //for (j = 0; j <= strlen(buf); j++)
+        //{
+        //  printf("ASCII value of %c = %d \n", buf[j], buf[j]);
+        //}
 
         // Check for valid command
         if ((strcmp(buf, "00") == 0) || ((atoi(buf) >= 1) && (atoi(buf) <= 99))
@@ -416,6 +426,9 @@ void *SocketListener(void * arg)
 		//{
 		//	die("sendto()");
 		//}
+
+        // Clear the buffer
+        buf[0] = '\0';
 	}
 
 	close(s);
@@ -453,6 +466,7 @@ void UDP_Command(int command_code)
     StatusScreenOveride = false;
     output_overide = true;
     output_overide_source = -1;  // Quad View code
+    printf("Quad View Code received\n");
     return;
   }
 
@@ -460,6 +474,7 @@ void UDP_Command(int command_code)
   {
     inputStatusChange = true;
     talkbackaudio = true;
+    printf("Talkback audio enable Code received\n");
     return;
   }
 
@@ -467,6 +482,7 @@ void UDP_Command(int command_code)
   {
     inputStatusChange = true;
     talkbackaudio = false;
+    printf("Talkback audio disable Code received\n");
     return;
   }
 
@@ -491,10 +507,12 @@ void UDP_Command(int command_code)
       if (command_code == atoi(dtmfgpiooutoncode[i]))
       {
         gpio_write(localGPIO, dtmfoutputGPIO[i], 1);
+        return;
       }
       if (command_code == atoi(dtmfgpiooutoffcode[i]))
       {
         gpio_write(localGPIO, dtmfoutputGPIO[i], 0);
+        return;
       }
     }
   }
@@ -520,6 +538,9 @@ void UDP_Command(int command_code)
     system("sudo reboot now");
     return;
   }
+
+  // Code not recognised
+  printf("Unrecognised DTMF or UDB command: %d\n", command_code);
 }
 
 //pi@raspberrypi:~ $ ncat -v 127.0.0.1 8888 -u
