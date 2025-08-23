@@ -62,6 +62,7 @@ extern int rxpoweroff1;
 extern int rxpoweron2;
 extern int rxpoweroff2;
 extern bool quiet_hours;
+extern int inputactivedelay;
 
 
 #endif /* __LISTENERS_H__ */

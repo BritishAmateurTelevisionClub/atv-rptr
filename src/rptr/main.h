@@ -107,6 +107,7 @@ bool cascadedswitches = false;                     // Using 2 switches?
 bool showoutputongpio = false;                     // Toggle gpio lines in addition to IR
 int outputaudioi2cbit[8];                          // range 0 - 7, value 0 to 7
 int daisychainirselectgpio = 27;                   // Second IR select Broadcom number
+int inputactivedelay = 1500;                       // milliseconds delay to prevent K if receiver is briefly active 
 
 // Current Status parameters
 int inputactive[8] = {1, 0, 0, 0, 0, 0, 0, 0};     // 0 if inactive, 1 if active

@@ -201,6 +201,7 @@ availableinputs=6
 activeinputhold=no
 showquadformultipleinputs=yes
 cascadedswitches=no
+inputactivedelay=1500
 
 outputswitchcontrol=ir
 showoutputongpio=yes
