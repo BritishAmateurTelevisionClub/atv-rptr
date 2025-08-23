@@ -164,9 +164,9 @@ SUCCESS=$?; UpdateLogMsg $SUCCESS "i2c-tools"
 sudo apt-get install -y dos2unix
 SUCCESS=$?; UpdateLogMsg $SUCCESS "dos2unix"
 sudo apt-get install -y expect
-SUCCESS=$?; BuildLogMsg $SUCCESS "expect"
+SUCCESS=$?; UpdateLogMsg $SUCCESS "expect"
 sudo apt-get install -y telnet
-SUCCESS=$?; BuildLogMsg $SUCCESS "telnet"
+SUCCESS=$?; UpdateLogMsg $SUCCESS "telnet"
 
 # ---------- Update atv-rptr -----------
 
@@ -232,9 +232,20 @@ fi
 DisplayUpdateMsg "Step 8 of 10\nRestoring Config\n\nXXXXXXXX--"
 
 if [[ "$KEEPCONFIG" == "true" ]]; then
+  echo
+  echo "----------------------------------"
+  echo "----- Restoring Configuration ----"
+  echo "----------------------------------"
+
   # Restore repeater_config.txt
   cp -f -r "$PATHUBACKUP"/repeater_config.txt "$PATHCONFIG"/repeater_config.txt
-  cp -f -r "$PATHUBACKUP"/desktop_shutdown.sh /home/pi/atv-rptr/scripts/desktop_shutdown.sh 
+
+  # Restore desktop shutdown script (installation-specific)
+  cp -f -r "$PATHUBACKUP"/desktop_shutdown.sh /home/pi/atv-rptr/scripts/desktop_shutdown.sh
+
+  # Restore images
+  rm -r /home/pi/atv-rptr/media
+  cp -f -r "$PATHUBACKUP"/media /home/pi/atv-rptr/media
 fi
 
 # Add controller talkback audio setting to config file if not included  202402190
@@ -246,11 +257,13 @@ if ! grep -q controllertalkbackaudio= "$PATHCONFIG"/repeater_config.txt; then
   echo '# Volume is set by dtmfaudiogain above' >> "$PATHCONFIG"/repeater_config.txt
   echo 'controllertalkbackaudio=off' >> "$PATHCONFIG"/repeater_config.txt
 fi
-
-if [[ "$KEEPCONFIG" == "true" ]]; then
-  # Restore images
-  rm -r /home/pi/atv-rptr/media
-  cp -f -r "$PATHUBACKUP"/media /home/pi/atv-rptr/media
+# Add receiver select delay to config file if not included  202508230
+if ! grep -q inputactivedelay= "$PATHCONFIG"/repeater_config.txt; then
+  # File needs updating
+  # Add the new entry and a new line
+  echo >> "$PATHCONFIG"/repeater_config.txt
+  echo '# Delay in ms to eliminate false Ks' >> "$PATHCONFIG"/repeater_config.txt
+  echo 'inputactivedelay=1500' >> "$PATHCONFIG"/repeater_config.txt
 fi
 
 # Restore version info

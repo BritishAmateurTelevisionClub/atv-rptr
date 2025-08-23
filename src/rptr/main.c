@@ -941,6 +941,19 @@ void read_config_file()
     cascadedswitches = true;
   }
 
+  // Delay on receiver input switch
+  strcpy(Value, "1500");
+  GetConfigParam(PATH_CONFIG, "inputactivedelay", Value);
+  inputactivedelay = atoi(Value);
+  if (inputactivedelay < 100)
+  {
+    inputactivedelay = 100;
+  }
+  if (inputactivedelay > 5000)
+  {
+    inputactivedelay = 5000;
+  }
+
   // ATEM IP address
   strcpy(Value, "");
   GetConfigParam(PATH_CONFIG, "atemip", Value);

@@ -1,3 +1,6 @@
+202508230
+Add variable delay option for receiver switching
+
 202507230
 Prevent creation of multiple carousel switching threads
 Improve DTMF error checking

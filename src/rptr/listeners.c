@@ -71,7 +71,12 @@ void *InputStatusListener(void * arg)
         printf("Status change already true, Switch change detected, checking for debounce\n");
       }
 
-      usleep(100000);            // Wait 100ms for switch bounce
+      // Wait for set period to eliminate spurious signal detections
+      for (i = 0; i < inputactivedelay; i++)
+      {
+        usleep(1000);            // 1ms
+      }
+
       for (i = 1; i <= availableinputs; i++)
       {
         inputValues2[i] = gpio_read(localGPIO, inputactiveGPIO[i]);
