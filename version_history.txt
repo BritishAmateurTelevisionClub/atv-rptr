@@ -1,3 +1,6 @@
+202508250
+Allow i2c audio switch to repeat incoming audio during ident
+
 202508230
 Add variable delay option for receiver switching
 

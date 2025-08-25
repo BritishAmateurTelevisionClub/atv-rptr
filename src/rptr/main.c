@@ -1698,7 +1698,7 @@ void *Show_Ident(void * arg)
       }
     }
 
-    if (monotonic_ms() > ident_required)
+    if (monotonic_ms() > ident_required)    // Start ident
     {
       printf("Commencing Ident\n");
       ident_active = true;
@@ -1750,8 +1750,9 @@ void *Show_Ident(void * arg)
           system (identplaycommand);
         }
 
-        if ((currenti2caudiostatus[0] == 0) && (strcmp(audioswitch, "i2c") == 0))  // i2c audio req for ident
+        if (strcmp(audioswitch, "i2c") == 0)  // i2c audio req for ident
         {
+
           i2caudioswitchforident = true;
           newi2caudiostatus[0] = 1;
           for (i = 1; i <= 7; i++)
@@ -1769,7 +1770,7 @@ void *Show_Ident(void * arg)
       ident_finish = monotonic_ms() + identduration;  // Sets the exact ident finish time
     }
 
-    if (monotonic_ms() > ident_finish)
+    if (monotonic_ms() > ident_finish)                // Time to end the Ident
     {
       printf("Stopping Ident Audio\n");
       ident_finish = ident_required + identduration + 2000;  // Set approx ident finish time in the future
@@ -2042,6 +2043,9 @@ void Seti2cAudioSwitch(int bitv[8])
   char i2cstring[127];
   int i;
 
+  //printf("\nSeti2cAudioSwitch called with\n");
+  //printf("%d, %d, %d, %d, %d, %d, %d, %d\n\n", bitv[0], bitv[1], bitv[2], bitv[3], bitv[4], bitv[5], bitv[6], bitv[7]);
+
   hexvalue = (bitv[0]) + (2 * bitv[1]) + (4 * bitv[2]) + (8 * bitv[3]) + (16 * bitv[4]) + (32 * bitv[5]) + (64 * bitv[6]) + (128 * bitv[7]);
   if (hexvalue <= 15)
   {
@@ -2057,7 +2061,7 @@ void Seti2cAudioSwitch(int bitv[8])
    printf("%s\n", i2cstring);
   system(i2cstring);
 
-  // Set the output levels
+  // Set the output switch
   snprintf(i2cstring, 120, "i2cset -y %d 0x2%d 0x0A %s", i2cdevnumber, audioi2caddress, hexstring);
    printf("%s\n", i2cstring);
   system(i2cstring);
@@ -2329,8 +2333,10 @@ void Select_HDMI_Switch(int selection)        // selection is between -1 (quad),
     {
       bitv[outputaudioi2cbit[selection]] = 1;
     }
-
-    Seti2cAudioSwitch(bitv);
+    if (ident_active == false)          // Allow repeated audio to continue during ident
+    {
+      Seti2cAudioSwitch(bitv);
+    }
   }
 }
 

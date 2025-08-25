@@ -138,7 +138,7 @@ char StatusForConfigDisplay[100];                  // Status to be shown on conf
 
 // Audio Parameters
 
-int currenti2caudiostatus[8];                      // used to enable intelligent switching of ident
+int currenti2caudiostatus[8] = {0, 0, 0, 0, 0, 0, 0, 0};        // used to enable intelligent switching of ident
 
 int localGPIO;                                     // Identifier for piGPIO
 
