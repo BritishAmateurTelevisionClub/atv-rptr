@@ -1,3 +1,6 @@
+202604240
+Amend the sources.list to legacy
+
 202508250
 Allow i2c audio switch to repeat incoming audio during ident
 
