@@ -1846,12 +1846,14 @@ void *Show_K_Carousel(void * arg)
   {
     printf("Displaying the K\n");
 
-    pthread_mutex_lock(&fbi_lock);
+    //pthread_mutex_lock(&fbi_lock);  // used to hang here
 
+    printf("Pre fbiThenKill\n");   // monitoring for future hangs
     fbiThenKill(kmediafile);
+    printf("Post fbiThenKill\n");   // monitoring for future hangs
 
     // Release fbi
-    pthread_mutex_unlock(&fbi_lock);
+    //pthread_mutex_unlock(&fbi_lock);  // not required?
    
     // Play the audio file if required
     if (kcwaudio == true)
@@ -1885,6 +1887,8 @@ void *Show_K_Carousel(void * arg)
         system (cwplaycommand);
       }
     }
+    printf("Post Audio\n");
+
   }
 
   // Now wait kmediaduration seconds
@@ -1901,8 +1905,9 @@ void *Show_K_Carousel(void * arg)
         (inputactive[6] == 1) ||
         (inputactive[7] == 1))            // An Input is active
     {
-      media_start = monotonic_ms() - kmediaduration * 1000;
+      //media_start = monotonic_ms() - kmediaduration * 1000;
       printf("Exiting K display duration as active input detected\n");
+      break;
     }
   }
 
