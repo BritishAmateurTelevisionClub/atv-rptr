@@ -1,3 +1,6 @@
+202604280
+Bugfix Lockup on K caused by intermittent signal during and after ident
+
 202604240
 Amend the sources.list to legacy
 
